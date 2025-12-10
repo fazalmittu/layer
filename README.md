@@ -250,15 +250,3 @@ If note creation times out:
 If you don't use iCloud for Notes:
 1. The API will automatically fall back to "On My Mac" account
 2. If that fails, check **Notes > Preferences** to verify your accounts
-
-## License
-
-MIT
-
-## Roadmap
-
-See the Technical Design Document for planned features:
-- Phase 2: Close apps, append notes, open URLs, run Shortcuts
-- Phase 3: Multi-user auth, permission scopes, client SDKs
-- Phase 4: Workflow builder, AI agent integration
-
