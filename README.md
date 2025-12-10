@@ -4,16 +4,27 @@ A secure, minimal API layer for remote macOS automation. Turn your Mac into a pr
 
 ## Features
 
-- **Open Applications** - Launch whitelisted macOS apps remotely
-- **Create Notes** - Create Apple Notes with title and content
-- **API Key Authentication** - Secure all endpoints with a secret key
+- **Application Control** - Open whitelisted macOS apps
+- **Notes** - Create Apple Notes
+- **Clipboard** - Read/write system clipboard
+- **Screenshots** - Capture screen as base64 PNG
+- **Notifications** - Send macOS notifications
+- **Text-to-Speech** - Speak text aloud
+- **System Controls** - Volume, brightness, dark mode, sleep, lock
+- **Shortcuts** - Run Shortcuts.app workflows
+- **Filesystem** - Read/write files in safe directories
+- **API Key Authentication** - Secure all endpoints
 - **Consistent API** - All responses follow a predictable JSON envelope
 
 ## Prerequisites
 
-- macOS (tested on Ventura and later)
+- macOS (Ventura or later)
 - Python 3.11+
-- Apple Notes app (for note creation)
+
+### Optional
+
+- `brightness` CLI for display brightness control (`brew install brightness`)
+- A Shortcut named "Toggle Do Not Disturb" for DND toggle
 
 ## Setup
 
@@ -77,9 +88,52 @@ The API will be available at `http://localhost:8000`
 
 ## API Endpoints
 
-All authenticated endpoints require the `X-API-Key` header.
+All endpoints (except `/ping`) require the `X-API-Key` header.
 
-### Health Check
+### Endpoint Reference
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/ping` | Health check (no auth required) |
+| **Apps** | | |
+| `GET` | `/allowed-apps` | List whitelisted applications |
+| `POST` | `/open-app` | Open a whitelisted application |
+| **Notes** | | |
+| `POST` | `/create-note` | Create a new Apple Note |
+| **Clipboard** | | |
+| `GET` | `/clipboard` | Get clipboard text content |
+| `POST` | `/clipboard` | Set clipboard text content |
+| **Screenshot** | | |
+| `GET` | `/screenshot` | Capture screen as base64 PNG |
+| **Browser** | | |
+| `POST` | `/open-url` | Open URL in default browser |
+| **Shortcuts** | | |
+| `POST` | `/run-shortcut` | Run a Shortcuts.app shortcut |
+| **Notifications** | | |
+| `POST` | `/notify` | Send a macOS notification |
+| **Speech** | | |
+| `POST` | `/speak` | Text-to-speech output |
+| **System** | | |
+| `GET` | `/volume` | Get volume level and mute status |
+| `POST` | `/volume` | Set volume level or mute/unmute |
+| `GET` | `/brightness` | Get display brightness |
+| `POST` | `/brightness` | Set display brightness |
+| `GET` | `/dark-mode` | Get dark mode status |
+| `POST` | `/dark-mode` | Toggle dark mode |
+| `POST` | `/dnd` | Toggle Do Not Disturb |
+| `POST` | `/sleep` | Put system to sleep |
+| `POST` | `/lock` | Lock the screen |
+| **Filesystem** | | |
+| `POST` | `/files/list` | List files in a directory |
+| `POST` | `/files/read` | Read a text file |
+| `POST` | `/files/write` | Write to a file |
+| `GET` | `/downloads` | List Downloads folder |
+
+---
+
+### Examples
+
+#### Health Check
 
 ```bash
 curl http://localhost:8000/ping
@@ -93,7 +147,7 @@ Response:
 }
 ```
 
-### List Allowed Apps
+#### List Allowed Apps
 
 ```bash
 curl -H "X-API-Key: YOUR_KEY" http://localhost:8000/allowed-apps
@@ -113,7 +167,7 @@ Response:
 }
 ```
 
-### Open an Application
+#### Open an Application
 
 ```bash
 curl -X POST http://localhost:8000/open-app \
@@ -133,7 +187,7 @@ Response:
 }
 ```
 
-### Create a Note
+#### Create a Note
 
 ```bash
 curl -X POST http://localhost:8000/create-note \
