@@ -44,3 +44,11 @@ PORT = 8000
 # AppleScript execution timeout in seconds
 APPLESCRIPT_TIMEOUT = 10
 
+# Safe directories for filesystem operations
+# Only paths within these directories can be read/written
+SAFE_DIRECTORIES = [
+    "~/Desktop",
+    "~/Documents",
+    "~/Downloads",
+]
+

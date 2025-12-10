@@ -2,7 +2,7 @@
 
 A secure, minimal API layer for remote macOS automation. Turn your Mac into a programmable endpoint that can receive commands from remote users, AI agents, or automation systems.
 
-## Features (v0.1)
+## Features
 
 - **Open Applications** - Launch whitelisted macOS apps remotely
 - **Create Notes** - Create Apple Notes with title and content
