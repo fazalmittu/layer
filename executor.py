@@ -357,69 +357,6 @@ def set_volume(level: int | None = None, mute: bool | None = None) -> str:
     raise ExecutionError("Must specify level or mute")
 
 
-def get_brightness() -> float:
-    """Get current display brightness (0.0-1.0)."""
-    script = 'tell application "System Events" to get value of slider 1 of group 1 of window "Control Center" of application process "ControlCenter"'
-    
-    # Alternative method using brightness command if available
-    try:
-        result = subprocess.run(
-            ["brightness", "-l"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        if result.returncode == 0:
-            # Parse output for brightness value
-            for line in result.stdout.split("\n"):
-                if "brightness" in line.lower():
-                    parts = line.split()
-                    for part in parts:
-                        try:
-                            val = float(part)
-                            if 0 <= val <= 1:
-                                return val
-                        except ValueError:
-                            continue
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        pass
-    
-    # Fallback: use AppleScript (less reliable)
-    try:
-        script = 'tell application "System Preferences" to quit'
-        run_applescript(script, timeout=2)
-    except ExecutionError:
-        pass
-    
-    return 0.5  # Default if we can't determine
-
-
-def set_brightness(level: float) -> str:
-    """Set display brightness (0.0-1.0)."""
-    # Try using brightness command first
-    try:
-        subprocess.run(
-            ["brightness", str(level)],
-            capture_output=True,
-            timeout=5
-        )
-        return f"Brightness set to {int(level * 100)}%"
-    except FileNotFoundError:
-        pass
-    
-    # Fallback to AppleScript with System Events
-    # Note: This may not work on all systems
-    script = f'''
-tell application "System Events"
-    tell process "ControlCenter"
-        -- This is a simplified approach
-        key code 145  -- brightness down
-    end tell
-end tell
-'''
-    raise ExecutionError("Brightness control requires 'brightness' CLI tool. Install with: brew install brightness")
-
-
 def get_dark_mode() -> bool:
     """Get current dark mode status."""
     script = 'tell application "System Events" to tell appearance preferences to get dark mode'
@@ -438,53 +375,6 @@ def toggle_dark_mode() -> str:
     """Toggle dark mode."""
     current = get_dark_mode()
     return set_dark_mode(not current)
-
-
-def get_dnd_status() -> bool:
-    """Get Do Not Disturb status."""
-    # This is tricky on modern macOS - Focus mode replaced DND
-    script = '''
-tell application "System Events"
-    tell process "ControlCenter"
-        -- Check if Focus is enabled
-        try
-            return exists (first menu bar item of menu bar 1 whose description contains "Focus")
-        end try
-    end tell
-end tell
-'''
-    try:
-        result = run_applescript(script)
-        return result.lower() == "true"
-    except ExecutionError:
-        return False
-
-
-def toggle_dnd() -> str:
-    """Toggle Do Not Disturb / Focus mode."""
-    # Use keyboard shortcut approach
-    script = '''
-tell application "System Events"
-    -- Open Control Center
-    key code 49 using {control down}
-    delay 0.5
-    -- This is approximate - Focus behavior varies
-end tell
-'''
-    # Alternative: use shortcuts
-    try:
-        run_shortcut("Toggle Do Not Disturb")
-        return "Do Not Disturb toggled"
-    except ExecutionError:
-        pass
-    
-    raise ExecutionError("DND toggle requires a Shortcut named 'Toggle Do Not Disturb'. Create one in Shortcuts.app that toggles Focus mode.")
-
-
-def sleep_display() -> str:
-    """Put display to sleep."""
-    subprocess.run(["pmset", "displaysleepnow"], capture_output=True)
-    return "Display sleeping"
 
 
 def lock_screen() -> str:

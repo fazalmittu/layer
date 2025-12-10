@@ -59,11 +59,6 @@ class VolumeRequest(BaseModel):
     mute: bool | None = Field(None, description="Mute/unmute (overrides level if set)")
 
 
-class BrightnessRequest(BaseModel):
-    """Request body for setting brightness."""
-    level: float = Field(..., ge=0, le=1, description="Brightness level 0.0-1.0")
-
-
 class ListFilesRequest(BaseModel):
     """Request body for listing files."""
     path: str = Field(..., description="Directory path to list")

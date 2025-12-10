@@ -10,7 +10,7 @@ A secure, minimal API layer for remote macOS automation. Turn your Mac into a pr
 - **Screenshots** - Capture screen as base64 PNG
 - **Notifications** - Send macOS notifications
 - **Text-to-Speech** - Speak text aloud
-- **System Controls** - Volume, brightness, dark mode, sleep, lock
+- **System Controls** - Volume, dark mode, sleep, lock
 - **Shortcuts** - Run Shortcuts.app workflows
 - **Filesystem** - Read/write files in safe directories
 - **API Key Authentication** - Secure all endpoints
@@ -21,10 +21,6 @@ A secure, minimal API layer for remote macOS automation. Turn your Mac into a pr
 - macOS (Ventura or later)
 - Python 3.11+
 
-### Optional
-
-- `brightness` CLI for display brightness control (`brew install brightness`)
-- A Shortcut named "Toggle Do Not Disturb" for DND toggle
 
 ## Setup
 
@@ -116,11 +112,8 @@ All endpoints (except `/ping`) require the `X-API-Key` header.
 | **System** | | |
 | `GET` | `/volume` | Get volume level and mute status |
 | `POST` | `/volume` | Set volume level or mute/unmute |
-| `GET` | `/brightness` | Get display brightness |
-| `POST` | `/brightness` | Set display brightness |
 | `GET` | `/dark-mode` | Get dark mode status |
 | `POST` | `/dark-mode` | Toggle dark mode |
-| `POST` | `/dnd` | Toggle Do Not Disturb |
 | `POST` | `/sleep` | Put system to sleep |
 | `POST` | `/lock` | Lock the screen |
 | **Filesystem** | | |

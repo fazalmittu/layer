@@ -17,7 +17,6 @@ from schemas import (
     NotifyRequest,
     SpeakRequest,
     VolumeRequest,
-    BrightnessRequest,
     ListFilesRequest,
     ReadFileRequest,
     WriteFileRequest,
@@ -45,12 +44,8 @@ from executor import (
     # System
     get_volume,
     set_volume,
-    get_brightness,
-    set_brightness,
     get_dark_mode,
     toggle_dark_mode,
-    toggle_dnd,
-    sleep_display,
     sleep_system,
     lock_screen,
     # Filesystem
@@ -301,28 +296,6 @@ async def set_volume_endpoint(request: VolumeRequest, api_key: str = Header(None
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/brightness")
-async def get_brightness_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Get current display brightness."""
-    require_auth(api_key)
-    try:
-        level = get_brightness()
-        return success_response({"level": level})
-    except ExecutionError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/brightness")
-async def set_brightness_endpoint(request: BrightnessRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Set display brightness."""
-    require_auth(api_key)
-    try:
-        message = set_brightness(request.level)
-        return success_response({"message": message})
-    except ExecutionError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
 @app.get("/dark-mode")
 async def get_dark_mode_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
     """Get current dark mode status."""
@@ -340,17 +313,6 @@ async def toggle_dark_mode_endpoint(api_key: str = Header(None, alias="X-API-Key
     require_auth(api_key)
     try:
         message = toggle_dark_mode()
-        return success_response({"message": message})
-    except ExecutionError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@app.post("/dnd")
-async def toggle_dnd_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Toggle Do Not Disturb / Focus mode."""
-    require_auth(api_key)
-    try:
-        message = toggle_dnd()
         return success_response({"message": message})
     except ExecutionError as e:
         raise HTTPException(status_code=500, detail=str(e))
