@@ -78,6 +78,13 @@ class WriteFileRequest(BaseModel):
     append: bool = Field(False, description="Append to file instead of overwrite")
 
 
+class PomodoroStartRequest(BaseModel):
+    """Request body for starting a pomodoro session."""
+    work_duration: int = Field(25, ge=1, le=120, description="Work duration in minutes (default 25)")
+    break_duration: int = Field(5, ge=1, le=60, description="Break duration in minutes (default 5)")
+    focus_mode: bool = Field(True, description="Enable focus mode (mute, dark mode)")
+
+
 # =============================================================================
 # Response Models
 # =============================================================================

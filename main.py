@@ -21,7 +21,9 @@ from schemas import (
     ReadFileRequest,
     WriteFileRequest,
     AllowedApp,
+    PomodoroStartRequest,
 )
+from pomodoro import pomodoro_manager
 from executor import (
     ExecutionError,
     # Apps
@@ -386,6 +388,162 @@ async def list_downloads_endpoint(api_key: str = Header(None, alias="X-API-Key")
         return success_response({"files": files})
     except ExecutionError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# =============================================================================
+# Pomodoro Timer
+# =============================================================================
+
+async def on_work_session_complete():
+    """Called when a work session ends."""
+    try:
+        send_notification(
+            "Pomodoro Complete!",
+            "Time for a break. Step away from the screen.",
+            subtitle=f"Session #{pomodoro_manager.state.sessions_completed}",
+            sound=True
+        )
+        speak_text("Pomodoro complete. Time for a break.", rate=200)
+    except Exception:
+        pass  # Don't fail the timer if notification fails
+
+
+async def on_break_complete():
+    """Called when a break ends."""
+    try:
+        send_notification(
+            "Break Over!",
+            "Ready to focus? Starting next work session.",
+            sound=True
+        )
+        speak_text("Break over. Let's get back to work.", rate=200)
+    except Exception:
+        pass
+
+
+# Set up callbacks
+pomodoro_manager.set_callbacks(on_work_session_complete, on_break_complete)
+
+
+@app.post("/pomodoro/start")
+async def pomodoro_start(
+    request: PomodoroStartRequest,
+    api_key: str = Header(None, alias="X-API-Key")
+) -> dict[str, Any]:
+    """
+    Start a pomodoro work session.
+    
+    Optionally enables focus mode (mutes volume).
+    After work_duration minutes, notifies and starts break.
+    After break_duration minutes, notifies and starts next work session.
+    """
+    require_auth(api_key)
+    
+    if pomodoro_manager.is_active:
+        raise HTTPException(status_code=400, detail="Pomodoro already active. Stop it first.")
+    
+    original_volume = None
+    
+    # Enable focus mode if requested (just mute - dark mode requires accessibility permissions)
+    if request.focus_mode:
+        try:
+            vol_info = get_volume()
+            original_volume = vol_info.get("level", 50)
+            set_volume(mute=True)
+        except ExecutionError:
+            pass  # Continue even if mute fails
+    
+    # Start the pomodoro
+    result = await pomodoro_manager.start(
+        work_duration=request.work_duration,
+        break_duration=request.break_duration,
+        focus_mode=request.focus_mode,
+        original_volume=original_volume,
+    )
+    
+    # Send start notification
+    try:
+        send_notification(
+            "Pomodoro Started",
+            f"{request.work_duration} minute work session. Focus!",
+            sound=True
+        )
+    except ExecutionError:
+        pass
+    
+    return success_response(result)
+
+
+@app.get("/pomodoro/status")
+async def pomodoro_status(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+    """Get current pomodoro timer status."""
+    require_auth(api_key)
+    return success_response(pomodoro_manager.get_status())
+
+
+@app.post("/pomodoro/stop")
+async def pomodoro_stop(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+    """
+    Stop the current pomodoro session.
+    
+    Restores original volume if focus mode was enabled.
+    """
+    require_auth(api_key)
+    
+    if not pomodoro_manager.is_active:
+        raise HTTPException(status_code=400, detail="No active pomodoro to stop.")
+    
+    result = await pomodoro_manager.stop()
+    
+    # Restore original volume
+    if result.get("original_volume") is not None:
+        try:
+            set_volume(mute=False)
+            set_volume(level=result["original_volume"])
+        except ExecutionError:
+            pass
+    
+    try:
+        send_notification(
+            "Pomodoro Stopped",
+            f"Completed {result.get('sessions_completed', 0)} session(s).",
+            sound=False
+        )
+    except ExecutionError:
+        pass
+    
+    return success_response({
+        "stopped": True,
+        "sessions_completed": result.get("sessions_completed", 0),
+    })
+
+
+@app.post("/pomodoro/skip")
+async def pomodoro_skip(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+    """
+    Skip to the next phase.
+    
+    If in work session: counts as complete, starts break.
+    If in break: starts next work session.
+    """
+    require_auth(api_key)
+    
+    if not pomodoro_manager.is_active:
+        raise HTTPException(status_code=400, detail="No active pomodoro to skip.")
+    
+    result = await pomodoro_manager.skip()
+    
+    phase = result.get("session_type", "work")
+    try:
+        send_notification(
+            "Phase Skipped",
+            f"Now in {phase} mode.",
+            sound=True
+        )
+    except ExecutionError:
+        pass
+    
+    return success_response(result)
 
 
 # =============================================================================
