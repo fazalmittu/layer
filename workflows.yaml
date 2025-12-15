@@ -1,0 +1,107 @@
+workflows:
+  focus-session:
+    description: Start a focus session with muted volume and timer
+    inputs:
+    - name: duration
+      default: 25
+    steps:
+    - action: volume
+      params:
+        mute: true
+    - action: open-app
+      params:
+        app: vscode
+    - action: pomodoro-start
+      params:
+        work_duration: '{{ input.duration }}'
+        break_duration: 5
+        focus_mode: false
+    - action: notify
+      params:
+        title: Focus Session Started
+        message: '{{ input.duration }} minutes of deep work. Let''s go!'
+  end-of-day:
+    description: Wrap up your day
+    steps:
+    - action: notify
+      params:
+        title: End of Day
+        message: Great work today! Time to rest.
+    - action: speak
+      params:
+        text: Great work today. Time to rest.
+    - action: volume
+      params:
+        level: 30
+    - action: lock
+  bug-capture:
+    description: Capture a bug report with screenshot and clipboard
+    inputs:
+    - name: title
+      default: Bug Report
+    steps:
+    - action: screenshot
+    - action: clipboard-get
+    - action: create-note
+      params:
+        title: '{{ input.title }} - {{ timestamp }}'
+        content: '## Bug Report
+
+          Captured: {{ timestamp }}
+
+
+          ## Clipboard Content
+
+          {{ steps[1].text }}
+
+
+          ## Screenshot
+
+          Screenshot captured (see step 0 output for base64 data)
+
+          '
+    - action: notify
+      params:
+        title: Bug Captured
+        message: Note created with screenshot and clipboard
+  coding-layout:
+    description: Set up a coding workspace with split windows
+    steps:
+    - action: open-app
+      params:
+        app: vscode
+    - action: window-layout
+      params:
+        layout: left-half
+    - action: open-app
+      params:
+        app: terminal
+    - action: window-layout
+      params:
+        layout: right-half
+    - action: notify
+      params:
+        title: Coding Layout Ready
+        message: VS Code left, Terminal right
+  clip-to-note:
+    description: Create a note from clipboard contents
+    inputs:
+    - name: title
+      default: Quick Note
+    steps:
+    - action: clipboard-get
+    - action: create-note
+      if: steps[0].text != ''
+      params:
+        title: '{{ input.title }} - {{ date }}'
+        content: '{{ steps[0].text }}'
+    - action: notify
+      if: steps[0].text != ''
+      params:
+        title: Note Created
+        message: Saved clipboard to Notes
+    - action: notify
+      if: steps[0].text == ''
+      params:
+        title: Nothing to Save
+        message: Clipboard was empty

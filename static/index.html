@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Layer - Workflow Editor</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Space Grotesk', 'system-ui', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        night: {
+                            50: '#f7f7f8',
+                            100: '#eeeef0',
+                            200: '#d9d9de',
+                            300: '#b8b8c1',
+                            400: '#91919f',
+                            500: '#737384',
+                            600: '#5d5d6b',
+                            700: '#4c4c57',
+                            800: '#41414a',
+                            900: '#393940',
+                            950: '#18181b',
+                        },
+                        accent: {
+                            DEFAULT: '#6366f1',
+                            light: '#818cf8',
+                            dark: '#4f46e5',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #4c4c57 transparent;
+        }
+        *::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        *::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        *::-webkit-scrollbar-thumb {
+            background-color: #4c4c57;
+            border-radius: 3px;
+        }
+        .step-card {
+            transition: all 0.15s ease;
+        }
+        .step-card:hover {
+            transform: translateX(2px);
+        }
+        .workflow-item {
+            transition: all 0.1s ease;
+        }
+        .workflow-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .workflow-item.active {
+            background: rgba(99, 102, 241, 0.2);
+            border-left: 3px solid #6366f1;
+        }
+        .action-select {
+            background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e");
+            background-position: right 0.5rem center;
+            background-repeat: no-repeat;
+            background-size: 1.5em 1.5em;
+        }
+        .fade-in {
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-4px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .pulse-dot {
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
+</head>
+<body class="bg-night-950 text-night-100 font-sans min-h-screen">
+    <!-- Header -->
+    <header class="border-b border-night-800 bg-night-950/80 backdrop-blur-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-gradient-to-br from-accent to-accent-dark rounded-lg flex items-center justify-center">
+                    <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h7"></path>
+                    </svg>
+                </div>
+                <h1 class="text-xl font-semibold">Layer <span class="text-night-500 font-normal">Workflows</span></h1>
+            </div>
+            <div class="flex items-center gap-3">
+                <div id="connection-status" class="flex items-center gap-2 text-sm text-night-400">
+                    <span class="w-2 h-2 rounded-full bg-green-500 pulse-dot"></span>
+                    <span>Connected</span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="max-w-7xl mx-auto flex h-[calc(100vh-73px)]">
+        <!-- Sidebar -->
+        <aside class="w-72 border-r border-night-800 flex flex-col">
+            <div class="p-4 border-b border-night-800">
+                <button id="btn-new-workflow" class="w-full bg-accent hover:bg-accent-dark text-white font-medium py-2.5 px-4 rounded-lg transition-colors flex items-center justify-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                    </svg>
+                    New Workflow
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto p-2">
+                <div id="workflow-list" class="space-y-1">
+                    <!-- Workflows will be populated here -->
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 flex flex-col overflow-hidden">
+            <!-- Empty State -->
+            <div id="empty-state" class="flex-1 flex items-center justify-center">
+                <div class="text-center">
+                    <div class="w-16 h-16 bg-night-800 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-night-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"></path>
+                        </svg>
+                    </div>
+                    <h2 class="text-lg font-medium text-night-300 mb-2">No workflow selected</h2>
+                    <p class="text-night-500 text-sm">Select a workflow from the sidebar or create a new one</p>
+                </div>
+            </div>
+
+            <!-- Editor -->
+            <div id="editor" class="flex-1 flex flex-col overflow-hidden hidden">
+                <!-- Editor Header -->
+                <div class="p-6 border-b border-night-800">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="flex-1 space-y-3">
+                            <input type="text" id="workflow-name" placeholder="workflow-name" 
+                                class="bg-transparent text-2xl font-semibold text-white placeholder-night-600 border-none outline-none w-full">
+                            <input type="text" id="workflow-description" placeholder="Add a description..." 
+                                class="bg-transparent text-night-400 placeholder-night-600 border-none outline-none w-full text-sm">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button id="btn-run" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-colors flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z"></path>
+                                </svg>
+                                Run
+                            </button>
+                            <button id="btn-save" class="bg-accent hover:bg-accent-dark text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                                Save
+                            </button>
+                            <button id="btn-delete" class="bg-night-800 hover:bg-red-600 text-night-300 hover:text-white font-medium py-2 px-4 rounded-lg transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Editor Body -->
+                <div class="flex-1 overflow-y-auto p-6 space-y-6">
+                    <!-- Inputs Section -->
+                    <section>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-night-400 uppercase tracking-wider">Inputs</h3>
+                            <button id="btn-add-input" class="text-accent hover:text-accent-light text-sm font-medium flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Add Input
+                            </button>
+                        </div>
+                        <div id="inputs-container" class="space-y-2">
+                            <!-- Inputs will be populated here -->
+                        </div>
+                        <div id="no-inputs" class="text-night-500 text-sm py-3 px-4 bg-night-900/50 rounded-lg border border-dashed border-night-700">
+                            No inputs defined. Inputs let you pass values when running the workflow.
+                        </div>
+                    </section>
+
+                    <!-- Steps Section -->
+                    <section>
+                        <div class="flex items-center justify-between mb-3">
+                            <h3 class="text-sm font-semibold text-night-400 uppercase tracking-wider">Steps</h3>
+                            <button id="btn-add-step" class="text-accent hover:text-accent-light text-sm font-medium flex items-center gap-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                Add Step
+                            </button>
+                        </div>
+                        <div id="steps-container" class="space-y-3">
+                            <!-- Steps will be populated here -->
+                        </div>
+                        <div id="no-steps" class="text-night-500 text-sm py-6 px-4 bg-night-900/50 rounded-lg border border-dashed border-night-700 text-center">
+                            No steps yet. Add steps to build your workflow.
+                        </div>
+                    </section>
+
+                    <!-- Run Output Section -->
+                    <section id="run-output-section" class="hidden">
+                        <h3 class="text-sm font-semibold text-night-400 uppercase tracking-wider mb-3">Run Output</h3>
+                        <div id="run-output" class="bg-night-900 rounded-lg border border-night-800 p-4 font-mono text-sm">
+                            <!-- Output will be populated here -->
+                        </div>
+                    </section>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Add Step Modal -->
+    <div id="step-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="bg-night-900 border border-night-700 rounded-xl shadow-2xl w-full max-w-lg mx-4 fade-in">
+            <div class="p-4 border-b border-night-700 flex items-center justify-between">
+                <h3 id="step-modal-title" class="font-semibold">Add Step</h3>
+                <button id="btn-close-modal" class="text-night-400 hover:text-white">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-4 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-night-300 mb-1.5">Action</label>
+                    <select id="step-action" class="action-select w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2.5 text-white appearance-none cursor-pointer focus:border-accent focus:outline-none">
+                        <option value="">Select an action...</option>
+                        <optgroup label="Apps">
+                            <option value="open-app">open-app</option>
+                        </optgroup>
+                        <optgroup label="Communication">
+                            <option value="notify">notify</option>
+                            <option value="speak">speak</option>
+                        </optgroup>
+                        <optgroup label="Clipboard">
+                            <option value="clipboard-get">clipboard-get</option>
+                            <option value="clipboard-set">clipboard-set</option>
+                        </optgroup>
+                        <optgroup label="Notes">
+                            <option value="create-note">create-note</option>
+                        </optgroup>
+                        <optgroup label="Screenshot">
+                            <option value="screenshot">screenshot</option>
+                        </optgroup>
+                        <optgroup label="Browser">
+                            <option value="open-url">open-url</option>
+                        </optgroup>
+                        <optgroup label="System">
+                            <option value="volume">volume</option>
+                            <option value="sleep">sleep</option>
+                            <option value="lock">lock</option>
+                        </optgroup>
+                        <optgroup label="Window Layout">
+                            <option value="window-layout">window-layout</option>
+                        </optgroup>
+                        <optgroup label="Shortcuts">
+                            <option value="run-shortcut">run-shortcut</option>
+                        </optgroup>
+                        <optgroup label="Pomodoro">
+                            <option value="pomodoro-start">pomodoro-start</option>
+                            <option value="pomodoro-stop">pomodoro-stop</option>
+                            <option value="pomodoro-status">pomodoro-status</option>
+                        </optgroup>
+                    </select>
+                </div>
+                <div id="step-params-container" class="space-y-3">
+                    <!-- Dynamic params will be populated here -->
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-night-300 mb-1.5">
+                        Condition <span class="text-night-500 font-normal">(optional)</span>
+                    </label>
+                    <input type="text" id="step-condition" placeholder="e.g., steps[0].text != ''" 
+                        class="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-white placeholder-night-500 focus:border-accent focus:outline-none font-mono text-sm">
+                </div>
+                <div class="bg-night-800/50 rounded-lg p-3 text-xs text-night-400">
+                    <span class="font-medium text-night-300">Variables:</span>
+                    <code class="text-accent ml-1">{{ input.name }}</code>,
+                    <code class="text-accent">{{ steps[0].field }}</code>,
+                    <code class="text-accent">{{ timestamp }}</code>,
+                    <code class="text-accent">{{ date }}</code>
+                </div>
+            </div>
+            <div class="p-4 border-t border-night-700 flex justify-end gap-2">
+                <button id="btn-cancel-step" class="px-4 py-2 text-night-300 hover:text-white transition-colors">Cancel</button>
+                <button id="btn-save-step" class="bg-accent hover:bg-accent-dark text-white font-medium px-4 py-2 rounded-lg transition-colors">Save Step</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="delete-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="bg-night-900 border border-night-700 rounded-xl shadow-2xl w-full max-w-sm mx-4 fade-in">
+            <div class="p-6 text-center">
+                <div class="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-6 h-6 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </div>
+                <h3 class="text-lg font-semibold mb-2">Delete Workflow?</h3>
+                <p class="text-night-400 text-sm mb-6">This action cannot be undone. The workflow "<span id="delete-workflow-name" class="text-white"></span>" will be permanently deleted.</p>
+                <div class="flex gap-3">
+                    <button id="btn-cancel-delete" class="flex-1 px-4 py-2.5 bg-night-800 hover:bg-night-700 rounded-lg transition-colors">Cancel</button>
+                    <button id="btn-confirm-delete" class="flex-1 px-4 py-2.5 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Run Inputs Modal -->
+    <div id="run-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center">
+        <div class="bg-night-900 border border-night-700 rounded-xl shadow-2xl w-full max-w-md mx-4 fade-in">
+            <div class="p-4 border-b border-night-700">
+                <h3 class="font-semibold">Run Workflow</h3>
+            </div>
+            <div class="p-4 space-y-4">
+                <div id="run-inputs-container" class="space-y-3">
+                    <!-- Run inputs will be populated here -->
+                </div>
+                <p id="no-run-inputs" class="text-night-400 text-sm hidden">This workflow has no inputs. Click Run to execute.</p>
+            </div>
+            <div class="p-4 border-t border-night-700 flex justify-end gap-2">
+                <button id="btn-cancel-run" class="px-4 py-2 text-night-300 hover:text-white transition-colors">Cancel</button>
+                <button id="btn-confirm-run" class="bg-green-600 hover:bg-green-700 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M8 5v14l11-7z"></path>
+                    </svg>
+                    Run
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-night-800 border border-night-700 rounded-lg shadow-lg px-4 py-3 flex items-center gap-3 transform translate-y-20 opacity-0 transition-all duration-300 z-50">
+        <div id="toast-icon" class="w-5 h-5"></div>
+        <span id="toast-message" class="text-sm"></span>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
+

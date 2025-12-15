@@ -4,8 +4,10 @@ A secure, minimal API for remote macOS automation.
 """
 
 from fastapi import FastAPI, HTTPException, Header, Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 from typing import Any
+from pathlib import Path
 
 from config import API_KEY, ALLOWED_APPS, HOST, PORT
 from schemas import (
@@ -55,7 +57,10 @@ from executor import (
     read_file,
     write_file,
     list_downloads,
+    # Window Layout
+    set_window_layout,
 )
+from workflow_engine import workflow_engine, WorkflowError
 
 
 # =============================================================================
@@ -66,6 +71,11 @@ app = FastAPI(
     title="Layer",
     description="A secure API for remote macOS automation",
 )
+
+# Mount static files
+static_dir = Path(__file__).parent / "static"
+if static_dir.exists():
+    app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
 
 # =============================================================================
@@ -110,6 +120,19 @@ def success_response(data: dict[str, Any] | None = None) -> dict[str, Any]:
 def require_auth(api_key: str | None) -> None:
     """Verify API key, raise if invalid."""
     verify_api_key(api_key)
+
+
+# =============================================================================
+# UI / Frontend
+# =============================================================================
+
+@app.get("/")
+async def serve_ui():
+    """Serve the workflow editor UI."""
+    index_path = Path(__file__).parent / "static" / "index.html"
+    if index_path.exists():
+        return FileResponse(index_path)
+    return JSONResponse({"message": "UI not found. Check static/index.html"}, status_code=404)
 
 
 # =============================================================================
@@ -544,6 +567,226 @@ async def pomodoro_skip(api_key: str = Header(None, alias="X-API-Key")) -> dict[
         pass
     
     return success_response(result)
+
+
+# =============================================================================
+# Workflows
+# =============================================================================
+
+# Helper functions for workflow actions that need to match expected signatures
+def _workflow_open_app(app: str) -> str:
+    """Open app for workflow - validates against whitelist."""
+    app_key = app.lower().strip()
+    if app_key not in ALLOWED_APPS:
+        raise ExecutionError(f"App '{app}' is not in the whitelist")
+    return open_application(ALLOWED_APPS[app_key])
+
+
+def _workflow_notify(title: str, message: str, subtitle: str = None, sound: bool = True) -> str:
+    return send_notification(title, message, subtitle, sound)
+
+
+def _workflow_speak(text: str, voice: str = None, rate: int = None) -> str:
+    return speak_text(text, voice, rate)
+
+
+def _workflow_screenshot() -> dict:
+    return {"image": take_screenshot(), "format": "png"}
+
+
+def _workflow_clipboard_get() -> dict:
+    return {"text": get_clipboard()}
+
+
+def _workflow_clipboard_set(text: str) -> str:
+    return set_clipboard(text)
+
+
+def _workflow_create_note(title: str, content: str) -> str:
+    return create_note(title, content)
+
+
+def _workflow_open_url(url: str) -> str:
+    return open_url(url)
+
+
+def _workflow_volume(level: int = None, mute: bool = None) -> str:
+    return set_volume(level, mute)
+
+
+def _workflow_run_shortcut(name: str, input: str = None) -> dict:
+    return {"output": run_shortcut(name, input)}
+
+
+def _workflow_sleep() -> str:
+    return sleep_system()
+
+
+def _workflow_lock() -> str:
+    return lock_screen()
+
+
+def _workflow_window_layout(layout: str, app: str = None) -> str:
+    return set_window_layout(layout, app)
+
+
+def _workflow_pomodoro_start(work_duration: int = 25, break_duration: int = 5, focus_mode: bool = False) -> dict:
+    """Synchronous wrapper for pomodoro start."""
+    import asyncio
+    
+    # Get or create event loop
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    # Handle focus mode
+    original_volume = None
+    if focus_mode:
+        try:
+            vol_info = get_volume()
+            original_volume = vol_info.get("level", 50)
+            set_volume(mute=True)
+        except ExecutionError:
+            pass
+    
+    # Create a coroutine and run it
+    async def start():
+        return await pomodoro_manager.start(
+            work_duration=int(work_duration) if isinstance(work_duration, str) else work_duration,
+            break_duration=int(break_duration) if isinstance(break_duration, str) else break_duration,
+            focus_mode=focus_mode,
+            original_volume=original_volume,
+        )
+    
+    # Run in existing loop or create new one
+    if loop.is_running():
+        future = asyncio.ensure_future(start())
+        # Can't await in sync context with running loop, so just return status
+        return pomodoro_manager.get_status()
+    else:
+        return loop.run_until_complete(start())
+
+
+def _workflow_pomodoro_stop() -> dict:
+    """Synchronous wrapper for pomodoro stop."""
+    import asyncio
+    
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+    
+    async def stop():
+        return await pomodoro_manager.stop()
+    
+    if loop.is_running():
+        return {"stopped": True, "sessions_completed": pomodoro_manager.state.sessions_completed}
+    else:
+        return loop.run_until_complete(stop())
+
+
+def _workflow_pomodoro_status() -> dict:
+    return pomodoro_manager.get_status()
+
+
+# Register all actions with the workflow engine
+workflow_engine.register_actions({
+    "open-app": _workflow_open_app,
+    "notify": _workflow_notify,
+    "speak": _workflow_speak,
+    "screenshot": _workflow_screenshot,
+    "clipboard-get": _workflow_clipboard_get,
+    "clipboard-set": _workflow_clipboard_set,
+    "create-note": _workflow_create_note,
+    "open-url": _workflow_open_url,
+    "volume": _workflow_volume,
+    "run-shortcut": _workflow_run_shortcut,
+    "sleep": _workflow_sleep,
+    "lock": _workflow_lock,
+    "window-layout": _workflow_window_layout,
+    "pomodoro-start": _workflow_pomodoro_start,
+    "pomodoro-stop": _workflow_pomodoro_stop,
+    "pomodoro-status": _workflow_pomodoro_status,
+})
+
+
+@app.get("/workflows")
+async def list_workflows(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+    """List all defined workflows."""
+    require_auth(api_key)
+    try:
+        workflows = workflow_engine.list_workflows()
+        return success_response({"workflows": workflows})
+    except WorkflowError as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/workflows/{name}")
+async def get_workflow(name: str, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+    """Get a specific workflow definition."""
+    require_auth(api_key)
+    workflow = workflow_engine.get_workflow(name)
+    if not workflow:
+        raise HTTPException(status_code=404, detail=f"Workflow '{name}' not found")
+    return success_response(workflow)
+
+
+@app.put("/workflows/{name}")
+async def create_or_update_workflow(
+    name: str,
+    request: Request,
+    api_key: str = Header(None, alias="X-API-Key")
+) -> dict[str, Any]:
+    """Create or update a workflow."""
+    require_auth(api_key)
+    try:
+        body = await request.json()
+        workflow = workflow_engine.create_workflow(name, body)
+        return success_response(workflow)
+    except WorkflowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/workflows/{name}")
+async def delete_workflow(name: str, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
+    """Delete a workflow."""
+    require_auth(api_key)
+    deleted = workflow_engine.delete_workflow(name)
+    if not deleted:
+        raise HTTPException(status_code=404, detail=f"Workflow '{name}' not found")
+    return success_response({"deleted": name})
+
+
+@app.post("/run/{name}")
+async def run_workflow(
+    name: str,
+    request: Request,
+    api_key: str = Header(None, alias="X-API-Key")
+) -> dict[str, Any]:
+    """
+    Execute a workflow by name.
+    
+    Optional JSON body can provide runtime inputs for the workflow.
+    """
+    require_auth(api_key)
+    
+    # Parse optional inputs from body
+    inputs = None
+    try:
+        body = await request.body()
+        if body:
+            inputs = await request.json()
+    except Exception:
+        pass
+    
+    try:
+        result = workflow_engine.run(name, inputs)
+        return success_response(result)
+    except WorkflowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # =============================================================================

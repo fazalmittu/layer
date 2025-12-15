@@ -478,3 +478,83 @@ def list_downloads() -> list[dict]:
     """List files in Downloads folder."""
     downloads = Path.home() / "Downloads"
     return list_files(str(downloads), show_hidden=False)
+
+
+# =============================================================================
+# Window Layout (requires Rectangle app)
+# =============================================================================
+
+RECTANGLE_LAYOUTS = {
+    "left-half": "left-half",
+    "right-half": "right-half",
+    "top-half": "top-half",
+    "bottom-half": "bottom-half",
+    "top-left": "top-left",
+    "top-right": "top-right",
+    "bottom-left": "bottom-left",
+    "bottom-right": "bottom-right",
+    "first-third": "first-third",
+    "center-third": "center-third",
+    "last-third": "last-third",
+    "first-two-thirds": "first-two-thirds",
+    "last-two-thirds": "last-two-thirds",
+    "maximize": "maximize",
+    "almost-maximize": "almost-maximize",
+    "fullscreen": "maximize",  # alias
+    "center": "center",
+    "restore": "restore",
+    "smaller": "smaller",
+    "larger": "larger",
+}
+
+
+def is_rectangle_installed() -> bool:
+    """Check if Rectangle app is installed."""
+    return Path("/Applications/Rectangle.app").exists()
+
+
+def set_window_layout(layout: str, app: str | None = None) -> str:
+    """
+    Set window layout using Rectangle app.
+    
+    Args:
+        layout: Layout name (left-half, right-half, maximize, etc.)
+        app: Optional app to focus first
+    
+    Requires Rectangle app to be installed.
+    """
+    if not is_rectangle_installed():
+        raise ExecutionError(
+            "Rectangle app not installed. "
+            "Install via: brew install --cask rectangle"
+        )
+    
+    layout_key = layout.lower().replace("_", "-")
+    if layout_key not in RECTANGLE_LAYOUTS:
+        available = ", ".join(sorted(RECTANGLE_LAYOUTS.keys()))
+        raise ExecutionError(f"Unknown layout '{layout}'. Available: {available}")
+    
+    rectangle_action = RECTANGLE_LAYOUTS[layout_key]
+    
+    # Optionally focus an app first
+    if app:
+        try:
+            open_application(app)
+            # Small delay for app to come to front
+            import time
+            time.sleep(0.3)
+        except ExecutionError:
+            pass  # Continue even if app focus fails
+    
+    # Execute Rectangle action via URL scheme
+    # -g flag opens in background (doesn't steal focus to Rectangle)
+    result = subprocess.run(
+        ["open", "-g", f"rectangle://execute-action?name={rectangle_action}"],
+        capture_output=True,
+        text=True
+    )
+    
+    if result.returncode != 0:
+        raise ExecutionError(f"Rectangle command failed: {result.stderr.strip()}")
+    
+    return f"Applied layout: {layout}" + (f" to {app}" if app else "")
