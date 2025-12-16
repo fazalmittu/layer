@@ -60,6 +60,15 @@ from executor import (
     list_downloads,
     # Window Layout
     set_window_layout,
+    # Spotify
+    spotify_play,
+    spotify_pause,
+    spotify_next,
+    spotify_previous,
+    spotify_get_track,
+    spotify_volume,
+    spotify_shuffle,
+    spotify_repeat,
 )
 from workflow_engine import workflow_engine, WorkflowError
 
@@ -809,6 +818,35 @@ def _workflow_window_layout(layout: str, app: str = None) -> str:
     return set_window_layout(layout, app)
 
 
+def _workflow_spotify_play(uri: str = None) -> dict:
+    return spotify_play(uri)
+
+
+def _workflow_spotify_pause() -> str:
+    return spotify_pause()
+
+
+def _workflow_spotify_next() -> dict:
+    return spotify_next()
+
+
+def _workflow_spotify_previous() -> dict:
+    return spotify_previous()
+
+
+def _workflow_spotify_get_track() -> dict:
+    return spotify_get_track()
+
+
+def _workflow_spotify_volume(level: int) -> str:
+    level = int(level) if isinstance(level, str) else level
+    return spotify_volume(level)
+
+
+def _workflow_spotify_shuffle(enabled: bool = True) -> str:
+    return spotify_shuffle(enabled)
+
+
 def _workflow_pomodoro_start(work_duration: int = 25, break_duration: int = 5, focus_mode: bool = False) -> dict:
     """Synchronous wrapper for pomodoro start."""
     import asyncio
@@ -890,6 +928,13 @@ workflow_engine.register_actions({
     "pomodoro-start": _workflow_pomodoro_start,
     "pomodoro-stop": _workflow_pomodoro_stop,
     "pomodoro-status": _workflow_pomodoro_status,
+    "spotify-play": _workflow_spotify_play,
+    "spotify-pause": _workflow_spotify_pause,
+    "spotify-next": _workflow_spotify_next,
+    "spotify-previous": _workflow_spotify_previous,
+    "spotify-current": _workflow_spotify_get_track,
+    "spotify-volume": _workflow_spotify_volume,
+    "spotify-shuffle": _workflow_spotify_shuffle,
 })
 
 

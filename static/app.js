@@ -63,7 +63,21 @@ const ACTION_PARAMS = {
         { name: 'focus_mode', type: 'checkbox', label: 'Enable focus mode (mute)', required: false }
     ],
     'pomodoro-stop': [],
-    'pomodoro-status': []
+    'pomodoro-status': [],
+    'spotify-play': [
+        { name: 'uri', type: 'text', label: 'Spotify URI', required: false, placeholder: 'spotify:playlist:37i9dQZF1DX5trt9i14X7j',
+          info: 'Leave empty to resume playback. To get a URI: Right-click any song/playlist/album in Spotify → Share → Copy Spotify URI. Format: spotify:track:xxx, spotify:playlist:xxx, or spotify:album:xxx' }
+    ],
+    'spotify-pause': [],
+    'spotify-next': [],
+    'spotify-previous': [],
+    'spotify-current': [],
+    'spotify-volume': [
+        { name: 'level', type: 'number', label: 'Volume (0-100)', required: true, min: 0, max: 100, placeholder: '50' }
+    ],
+    'spotify-shuffle': [
+        { name: 'enabled', type: 'checkbox', label: 'Enable shuffle', required: false, default: true }
+    ]
 };
 
 // =============================================================================
@@ -427,14 +441,26 @@ function renderStepParams(action) {
         return;
     }
     
+    // Helper to render info button
+    const infoButton = (info) => info ? `
+        <div class="relative inline-block ml-1 group">
+            <button type="button" class="w-4 h-4 rounded-full bg-night-700 text-night-400 hover:bg-accent hover:text-white text-xs font-bold inline-flex items-center justify-center">?</button>
+            <div class="absolute left-0 bottom-full mb-2 w-72 p-3 bg-night-800 border border-night-600 rounded-lg shadow-xl text-xs text-night-300 hidden group-hover:block z-50">
+                ${info}
+                <div class="absolute left-3 top-full w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-night-600"></div>
+            </div>
+        </div>
+    ` : '';
+    
     elements.stepParamsContainer.innerHTML = params.map(param => {
         const id = `param-${param.name}`;
         
         if (param.type === 'select') {
             return `
                 <div>
-                    <label for="${id}" class="block text-sm font-medium text-night-300 mb-1.5">
-                        ${param.label} ${param.required ? '' : '<span class="text-night-500 font-normal">(optional)</span>'}
+                    <label for="${id}" class="text-sm font-medium text-night-300 mb-1.5 flex items-center">
+                        ${param.label} ${param.required ? '' : '<span class="text-night-500 font-normal ml-1">(optional)</span>'}
+                        ${infoButton(param.info)}
                     </label>
                     <select id="${id}" class="action-select w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-white appearance-none cursor-pointer focus:border-accent focus:outline-none">
                         <option value="">Select...</option>
@@ -447,14 +473,15 @@ function renderStepParams(action) {
                 <div class="flex items-center gap-2">
                     <input type="checkbox" id="${id}" ${param.default ? 'checked' : ''} 
                         class="w-4 h-4 bg-night-800 border-night-700 rounded text-accent focus:ring-accent focus:ring-offset-night-900">
-                    <label for="${id}" class="text-sm text-night-300">${param.label}</label>
+                    <label for="${id}" class="text-sm text-night-300 flex items-center">${param.label}${infoButton(param.info)}</label>
                 </div>
             `;
         } else if (param.type === 'textarea') {
             return `
                 <div>
-                    <label for="${id}" class="block text-sm font-medium text-night-300 mb-1.5">
-                        ${param.label} ${param.required ? '' : '<span class="text-night-500 font-normal">(optional)</span>'}
+                    <label for="${id}" class="text-sm font-medium text-night-300 mb-1.5 flex items-center">
+                        ${param.label} ${param.required ? '' : '<span class="text-night-500 font-normal ml-1">(optional)</span>'}
+                        ${infoButton(param.info)}
                     </label>
                     <textarea id="${id}" rows="3" placeholder="${param.placeholder || ''}"
                         class="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-white placeholder-night-500 focus:border-accent focus:outline-none resize-none"></textarea>
@@ -463,8 +490,9 @@ function renderStepParams(action) {
         } else {
             return `
                 <div>
-                    <label for="${id}" class="block text-sm font-medium text-night-300 mb-1.5">
-                        ${param.label} ${param.required ? '' : '<span class="text-night-500 font-normal">(optional)</span>'}
+                    <label for="${id}" class="text-sm font-medium text-night-300 mb-1.5 flex items-center">
+                        ${param.label} ${param.required ? '' : '<span class="text-night-500 font-normal ml-1">(optional)</span>'}
+                        ${infoButton(param.info)}
                     </label>
                     <input type="${param.type}" id="${id}" placeholder="${param.placeholder || ''}"
                         ${param.min !== undefined ? `min="${param.min}"` : ''}

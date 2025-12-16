@@ -287,6 +287,152 @@ def open_url(url: str) -> str:
 
 
 # =============================================================================
+# Spotify
+# =============================================================================
+
+def spotify_play(uri: str | None = None) -> dict:
+    """
+    Play a track, playlist, or album in Spotify.
+    
+    Args:
+        uri: Spotify URI (e.g., spotify:track:xxx, spotify:playlist:xxx)
+             If None, resumes playback.
+    """
+    if uri:
+        # Validate URI format
+        if not uri.startswith("spotify:"):
+            raise ExecutionError(
+                f"Invalid Spotify URI format. Expected 'spotify:track:xxx' or 'spotify:playlist:xxx', got: {uri}"
+            )
+        
+        script = f'''
+tell application "Spotify"
+    play track "{uri}"
+end tell
+'''
+    else:
+        script = 'tell application "Spotify" to play'
+    
+    run_applescript(script)
+    
+    # Get current track info
+    try:
+        info = spotify_get_track()
+        return {"playing": True, "track": info.get("name"), "artist": info.get("artist")}
+    except:
+        return {"playing": True}
+
+
+def spotify_pause() -> str:
+    """Pause Spotify playback."""
+    script = 'tell application "Spotify" to pause'
+    run_applescript(script)
+    return "Spotify paused"
+
+
+def spotify_next() -> dict:
+    """Skip to the next track."""
+    script = 'tell application "Spotify" to next track'
+    run_applescript(script)
+    
+    # Small delay for track to change
+    import time
+    time.sleep(0.3)
+    
+    try:
+        info = spotify_get_track()
+        return {"skipped": True, "now_playing": info.get("name"), "artist": info.get("artist")}
+    except:
+        return {"skipped": True}
+
+
+def spotify_previous() -> dict:
+    """Go to the previous track."""
+    script = 'tell application "Spotify" to previous track'
+    run_applescript(script)
+    
+    import time
+    time.sleep(0.3)
+    
+    try:
+        info = spotify_get_track()
+        return {"previous": True, "now_playing": info.get("name"), "artist": info.get("artist")}
+    except:
+        return {"previous": True}
+
+
+def spotify_get_track() -> dict:
+    """Get information about the currently playing track."""
+    script = '''
+tell application "Spotify"
+    if player state is playing or player state is paused then
+        set trackName to name of current track
+        set artistName to artist of current track
+        set albumName to album of current track
+        set trackDuration to duration of current track
+        set trackPosition to player position
+        set isPlaying to (player state is playing)
+        return trackName & "|||" & artistName & "|||" & albumName & "|||" & trackDuration & "|||" & trackPosition & "|||" & isPlaying
+    else
+        return "NOT_PLAYING"
+    end if
+end tell
+'''
+    result = run_applescript(script)
+    
+    if result == "NOT_PLAYING":
+        return {"playing": False}
+    
+    parts = result.split("|||")
+    if len(parts) >= 6:
+        return {
+            "name": parts[0],
+            "artist": parts[1],
+            "album": parts[2],
+            "duration_ms": int(float(parts[3])),
+            "position_ms": int(float(parts[4]) * 1000),
+            "playing": parts[5] == "true"
+        }
+    
+    return {"playing": False}
+
+
+def spotify_volume(level: int) -> str:
+    """Set Spotify volume (0-100)."""
+    if not 0 <= level <= 100:
+        raise ExecutionError("Volume must be between 0 and 100")
+    
+    script = f'tell application "Spotify" to set sound volume to {level}'
+    run_applescript(script)
+    return f"Spotify volume set to {level}"
+
+
+def spotify_shuffle(enabled: bool) -> str:
+    """Enable or disable shuffle."""
+    value = "true" if enabled else "false"
+    script = f'tell application "Spotify" to set shuffling to {value}'
+    run_applescript(script)
+    return f"Shuffle {'enabled' if enabled else 'disabled'}"
+
+
+def spotify_repeat(mode: str = "off") -> str:
+    """
+    Set repeat mode.
+    
+    Args:
+        mode: "off", "track", or "context" (playlist/album)
+    """
+    # Spotify AppleScript only supports on/off for repeating
+    if mode == "off":
+        script = 'tell application "Spotify" to set repeating to false'
+    else:
+        script = 'tell application "Spotify" to set repeating to true'
+    
+    run_applescript(script)
+    return f"Repeat set to {mode}"
+
+
+# =============================================================================
 # Shortcuts
 # =============================================================================
 
