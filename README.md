@@ -40,9 +40,6 @@ After installing, grant Rectangle accessibility permissions:
 ## Quick Start
 
 ```bash
-# Clone and enter directory
-cd layer
-
 # Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
@@ -50,9 +47,10 @@ source venv/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 
-# Generate API key and create .env
+# Setup environment (generate your own API key)
+cp .env.example .env
 python -c "import secrets; print(secrets.token_urlsafe(32))"
-echo "MAC_API_KEY=your-generated-key-here" > .env
+# Edit .env and paste the generated key
 
 # Start the server
 python main.py
@@ -61,6 +59,8 @@ python main.py
 The API runs at `http://localhost:8000`
 
 **Open the Workflow Editor:** Navigate to `http://localhost:8000` in your browser.
+
+> **Note:** On first run, `workflows.example.yaml` is copied to `workflows.yaml`. Your workflows won't be tracked by git - they're yours to customize!
 
 ---
 
@@ -155,21 +155,37 @@ Use `{{ }}` syntax in params:
 | `{{ date }}` | Current date |
 | `{{ time }}` | Current time |
 
-### Conditional Steps
+### Step Timing
 
-Skip steps based on conditions:
+Add delays or time-based conditions to steps:
 
 ```yaml
 steps:
-  - action: clipboard-get
-  - action: notify
-    if: steps[0].text != ''
+  - action: open-app
     params:
-      title: "Clipboard has content"
-      message: "{{ steps[0].text }}"
+      app: slack
+  - action: notify
+    delay: 2  # Wait 2 seconds before this step
+    params:
+      title: "Ready"
+      message: "Slack should be open now"
+  
+  # Only send this notification in the afternoon on weekdays
+  - action: notify
+    time_after: "14:00"
+    time_before: "18:00"
+    days: [mon, tue, wed, thu, fri]
+    params:
+      title: "Afternoon reminder"
+      message: "Time for a break!"
 ```
 
-Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`
+| Option | Description | Example |
+|--------|-------------|---------|
+| `delay` | Seconds to wait before step | `delay: 2` |
+| `time_after` | Only run after this time | `time_after: "09:00"` |
+| `time_before` | Only run before this time | `time_before: "17:00"` |
+| `days` | Only run on these days | `days: [mon, wed, fri]` |
 
 ### Available Actions
 
@@ -214,7 +230,7 @@ Open `http://localhost:8000` for the visual workflow editor.
 - Create new workflows
 - Add/edit/delete steps with guided forms
 - Reorder steps with up/down buttons
-- Condition builder (no manual syntax)
+- Optional delay between steps
 - Run workflows with input prompts
 - View execution results
 
@@ -320,10 +336,41 @@ macOS will prompt for permissions on first use:
 
 ---
 
+## Project Structure
+
+```
+layer/
+├── main.py                 # FastAPI server
+├── executor.py             # macOS automation functions
+├── workflow_engine.py      # Workflow loading/execution
+├── config.py               # Configuration & allowed apps
+├── schemas.py              # Pydantic models
+├── pomodoro.py             # Pomodoro timer logic
+├── requirements.txt        # Python dependencies
+├── .env.example            # Template for environment vars
+├── .env                    # Your API key (gitignored)
+├── workflows.example.yaml  # Example workflows (committed)
+├── workflows.yaml          # Your workflows (gitignored)
+├── static/                 # Web UI
+│   ├── index.html
+│   └── app.js
+└── openapi/                # Generated API specs
+```
+
+**What's committed vs. ignored:**
+| File | Committed | Description |
+|------|-----------|-------------|
+| `workflows.example.yaml` | ✅ | Example workflows for new users |
+| `workflows.yaml` | ❌ | Your personal workflows |
+| `.env.example` | ✅ | Template showing required vars |
+| `.env` | ❌ | Your API key |
+
+---
+
 ## Troubleshooting
 
 **"MAC_API_KEY not set"**
-- Create `.env` file with your API key
+- Copy `.env.example` to `.env` and add your API key
 
 **Window layout not working**
 - Install Rectangle: `brew install --cask rectangle`

@@ -105,3 +105,10 @@ workflows:
       params:
         title: Nothing to Save
         message: Clipboard was empty
+  spotify:
+    description: ''
+    inputs: []
+    steps:
+    - action: spotify-play
+      params:
+        uri: https://open.spotify.com/playlist/4NgycFrroxnQ81ElPG2pW7?si=d736d06085de4ec3

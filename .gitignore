@@ -29,6 +29,9 @@ env/
 # Environment variables (contains secrets!)
 .env
 
+# User workflows (use workflows.example.yaml as template)
+workflows.yaml
+
 # IDE
 .idea/
 .vscode/

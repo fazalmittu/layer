@@ -65,8 +65,8 @@ const ACTION_PARAMS = {
     'pomodoro-stop': [],
     'pomodoro-status': [],
     'spotify-play': [
-        { name: 'uri', type: 'text', label: 'Spotify URI', required: false, placeholder: 'spotify:playlist:37i9dQZF1DX5trt9i14X7j',
-          info: 'Leave empty to resume playback. To get a URI: Right-click any song/playlist/album in Spotify → Share → Copy Spotify URI. Format: spotify:track:xxx, spotify:playlist:xxx, or spotify:album:xxx' }
+        { name: 'uri', type: 'text', label: 'Spotify URL or URI', required: false, placeholder: 'https://open.spotify.com/playlist/37i9dQZF1DX5trt9i14X7j',
+          info: 'Leave empty to resume playback. Paste any Spotify link (URL) or URI. Just copy the link from Spotify\'s Share menu - both formats work!' }
     ],
     'spotify-pause': [],
     'spotify-next': [],
@@ -116,14 +116,11 @@ const elements = {
     stepModalTitle: $('#step-modal-title'),
     stepAction: $('#step-action'),
     stepParamsContainer: $('#step-params-container'),
-    stepCondition: $('#step-condition'),
-    conditionEnabled: $('#condition-enabled'),
-    conditionBuilder: $('#condition-builder'),
-    conditionSource: $('#condition-source'),
-    conditionField: $('#condition-field'),
-    conditionOperator: $('#condition-operator'),
-    conditionValue: $('#condition-value'),
-    conditionPreview: $('#condition-preview'),
+    stepDelay: $('#step-delay'),
+    stepTimeAfter: $('#step-time-after'),
+    stepTimeBefore: $('#step-time-before'),
+    stepDays: $('#step-days'),
+    variablesHint: $('#variables-hint'),
     deleteModal: $('#delete-modal'),
     deleteWorkflowName: $('#delete-workflow-name'),
     runModal: $('#run-modal'),
@@ -373,12 +370,14 @@ function renderSteps() {
                     </div>
                     <div class="flex items-center justify-center w-6 h-6 bg-night-800 rounded text-xs font-mono text-night-400">${i + 1}</div>
                     <div class="flex-1 min-w-0">
-                        <div class="font-medium text-sm flex items-center gap-2">
+                        <div class="font-medium text-sm flex items-center gap-2 flex-wrap">
                             <span class="text-accent">${step.action}</span>
-                            ${step.if ? `<span class="text-xs bg-yellow-500/20 text-yellow-400 px-1.5 py-0.5 rounded">if</span>` : ''}
+                            ${step.delay ? `<span class="text-xs bg-blue-500/20 text-blue-400 px-1.5 py-0.5 rounded">⏱ ${step.delay}s</span>` : ''}
+                            ${step.time_after ? `<span class="text-xs bg-green-500/20 text-green-400 px-1.5 py-0.5 rounded">after ${step.time_after}</span>` : ''}
+                            ${step.time_before ? `<span class="text-xs bg-orange-500/20 text-orange-400 px-1.5 py-0.5 rounded">before ${step.time_before}</span>` : ''}
+                            ${step.days?.length ? `<span class="text-xs bg-purple-500/20 text-purple-400 px-1.5 py-0.5 rounded">${step.days.join(', ')}</span>` : ''}
                         </div>
                         ${paramSummary ? `<div class="text-xs text-night-400 mt-0.5 truncate font-mono">${paramSummary}</div>` : ''}
-                        ${step.if ? `<div class="text-xs text-night-500 mt-1 font-mono">if: ${truncate(step.if, 40)}</div>` : ''}
                     </div>
                     <div class="flex items-center gap-1">
                         <button class="p-1.5 text-night-400 hover:text-white rounded hover:bg-night-800" data-edit-step="${i}" title="Edit">
@@ -515,21 +514,56 @@ function renderRunOutput(data) {
                 ${data.steps_skipped > 0 ? `<span class="text-yellow-400 ml-2">${data.steps_skipped} skipped</span>` : ''}
             </span>
         </div>
-        <div class="space-y-2">
+        <div class="space-y-3">
             ${results.map(r => {
                 const statusIcon = r.status === 'ok' 
                     ? '<span class="text-green-400">✓</span>'
                     : r.status === 'skipped' 
                         ? '<span class="text-yellow-400">○</span>'
                         : '<span class="text-red-400">✗</span>';
-                const message = r.output?.message || r.reason || '';
+                
+                // Format output nicely
+                let outputHtml = '';
+                if (r.output) {
+                    // Check for image (base64)
+                    if (r.output.image) {
+                        const imgId = `img-${r.step}`;
+                        outputHtml = `
+                            <div class="mt-2 ml-7">
+                                <img id="${imgId}" src="data:image/png;base64,${r.output.image}" 
+                                     data-base64="${r.output.image}"
+                                     class="max-w-md rounded border border-night-700 cursor-pointer hover:opacity-80 transition-all"
+                                     onclick="downloadImage('${imgId}')"
+                                     title="Click to download">
+                                <div class="flex items-center gap-3 mt-1.5 text-xs">
+                                    <span class="text-night-500">Click image to download</span>
+                                    <button onclick="copyBase64('${imgId}')" class="text-accent hover:text-accent/80">Copy base64</button>
+                                </div>
+                            </div>`;
+                    } else {
+                        // Show other output fields
+                        const fields = Object.entries(r.output)
+                            .filter(([k, v]) => k !== 'success' && v !== undefined && v !== null && v !== '')
+                            .map(([k, v]) => `<span class="text-night-500">${k}:</span> <span class="text-night-300">${truncate(String(v), 60)}</span>`)
+                            .join(', ');
+                        if (fields) {
+                            outputHtml = `<div class="mt-1 ml-7 text-xs font-mono">${fields}</div>`;
+                        }
+                    }
+                }
+                
+                if (r.reason) {
+                    outputHtml = `<div class="mt-1 ml-7 text-xs text-yellow-400">${r.reason}</div>`;
+                }
                 
                 return `
-                    <div class="flex items-start gap-2 text-sm">
-                        <span class="w-5 text-center">${statusIcon}</span>
-                        <span class="text-night-300">Step ${r.step + 1}</span>
-                        <span class="text-accent">${r.action}</span>
-                        ${message ? `<span class="text-night-500">— ${truncate(message, 50)}</span>` : ''}
+                    <div>
+                        <div class="flex items-start gap-2 text-sm">
+                            <span class="w-5 text-center">${statusIcon}</span>
+                            <span class="text-night-300">Step ${r.step + 1}</span>
+                            <span class="text-accent">${r.action}</span>
+                        </div>
+                        ${outputHtml}
                     </div>
                 `;
             }).join('')}
@@ -587,17 +621,148 @@ function removeInput(index) {
     renderInputs();
 }
 
+// What each action returns (for variable hints)
+// Useful outputs from each action (excludes 'success' since it's just a boolean)
+const ACTION_OUTPUTS = {
+    'open-app': [],
+    'notify': [],
+    'speak': [],
+    'screenshot': ['image'],
+    'save-screenshot': ['path', 'filename'],
+    'clipboard-get': ['text'],
+    'clipboard-set': [],
+    'create-note': [],
+    'open-url': [],
+    'volume': ['level', 'muted'],
+    'sleep': [],
+    'lock': [],
+    'window-layout': [],
+    'run-shortcut': ['result'],
+    'pomodoro-start': ['state'],
+    'pomodoro-stop': [],
+    'pomodoro-status': ['state', 'remaining', 'phase'],
+    'spotify-play': ['playing', 'track', 'artist'],
+    'spotify-pause': [],
+    'spotify-next': ['track', 'artist'],
+    'spotify-previous': ['track', 'artist'],
+    'spotify-volume': ['volume'],
+    'spotify-shuffle': [],
+    'spotify-current': ['track', 'artist', 'album'],
+};
+
+// Track last focused param input for variable insertion
+let lastFocusedParamInput = null;
+
+function updateVariablesHint(currentStepIndex) {
+    const variables = [];
+    
+    // Add workflow inputs
+    const inputs = state.currentWorkflow?.inputs || [];
+    inputs.forEach(inp => {
+        const name = typeof inp === 'string' ? inp : inp.name;
+        variables.push({ var: `{{ input.${name} }}`, label: `input.${name}`, type: 'input' });
+    });
+    
+    // Add previous step outputs (only if they have useful output)
+    const steps = state.currentWorkflow?.steps || [];
+    const maxIndex = currentStepIndex !== null ? currentStepIndex : steps.length;
+    
+    for (let i = 0; i < maxIndex; i++) {
+        const step = steps[i];
+        const outputs = ACTION_OUTPUTS[step.action] || [];
+        outputs.forEach(field => {
+            variables.push({ var: `{{ steps[${i}].${field} }}`, label: `step${i + 1}.${field}`, type: 'step' });
+        });
+    }
+    
+    // Add built-in variables
+    variables.push({ var: '{{ timestamp }}', label: 'timestamp', type: 'builtin' });
+    variables.push({ var: '{{ date }}', label: 'date', type: 'builtin' });
+    variables.push({ var: '{{ time }}', label: 'time', type: 'builtin' });
+    
+    // Render as clickable chips
+    const typeColors = {
+        input: 'bg-green-500/20 text-green-400 border-green-500/30',
+        step: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+        builtin: 'bg-purple-500/20 text-purple-400 border-purple-500/30'
+    };
+    
+    elements.variablesHint.innerHTML = variables.map(v => 
+        `<button type="button" class="var-chip px-1.5 py-0.5 rounded border text-xs font-mono cursor-pointer hover:brightness-125 ${typeColors[v.type]}" data-var="${v.var}" title="Click to insert">${v.label}</button>`
+    ).join(' ');
+    
+    // Add click handlers
+    elements.variablesHint.querySelectorAll('.var-chip').forEach(chip => {
+        chip.addEventListener('click', () => insertVariable(chip.dataset.var));
+    });
+}
+
+function insertVariable(variable) {
+    // Find the last focused param input, or the first text input in params
+    let target = lastFocusedParamInput;
+    if (!target || !document.body.contains(target)) {
+        target = elements.stepParamsContainer.querySelector('input[type="text"], textarea');
+    }
+    
+    if (target) {
+        const start = target.selectionStart || target.value.length;
+        const end = target.selectionEnd || target.value.length;
+        const before = target.value.substring(0, start);
+        const after = target.value.substring(end);
+        target.value = before + variable + after;
+        target.focus();
+        target.selectionStart = target.selectionEnd = start + variable.length;
+        
+        // Flash effect
+        target.classList.add('ring-2', 'ring-accent');
+        setTimeout(() => target.classList.remove('ring-2', 'ring-accent'), 300);
+    } else {
+        showToast('Click on a parameter field first', 'error');
+    }
+}
+
 function openAddStep() {
     state.editingStepIndex = null;
     elements.stepModalTitle.textContent = 'Add Step';
     elements.stepAction.value = '';
-    elements.stepCondition.value = '';
+    elements.stepDelay.value = '';
+    elements.stepTimeAfter.value = '';
+    elements.stepTimeBefore.value = '';
+    resetDayButtons();
     elements.stepParamsContainer.innerHTML = '<div class="text-night-500 text-sm">Select an action to see its parameters.</div>';
-    
-    // Reset condition builder
-    resetConditionBuilder();
+    updateVariablesHint(null);  // Show all previous steps
     
     showModal(elements.stepModal);
+}
+
+function resetDayButtons() {
+    $$('.day-btn').forEach(btn => {
+        btn.classList.remove('bg-accent', 'border-accent', 'text-white');
+        btn.classList.add('border-night-700', 'text-night-400');
+    });
+}
+
+function setSelectedDays(days) {
+    resetDayButtons();
+    if (!days || days.length === 0) return;
+    
+    days.forEach(day => {
+        const btn = $(`.day-btn[data-day="${day}"]`);
+        if (btn) {
+            btn.classList.remove('border-night-700', 'text-night-400');
+            btn.classList.add('bg-accent', 'border-accent', 'text-white');
+        }
+    });
+}
+
+function getSelectedDays() {
+    const days = [];
+    $$('.day-btn').forEach(btn => {
+        if (btn.classList.contains('bg-accent')) {
+            days.push(btn.dataset.day);
+        }
+    });
+    return days;
 }
 
 function openEditStep(index) {
@@ -605,8 +770,12 @@ function openEditStep(index) {
     state.editingStepIndex = index;
     elements.stepModalTitle.textContent = 'Edit Step';
     elements.stepAction.value = step.action;
-    elements.stepCondition.value = step.if || '';
+    elements.stepDelay.value = step.delay || '';
+    elements.stepTimeAfter.value = step.time_after || '';
+    elements.stepTimeBefore.value = step.time_before || '';
+    setSelectedDays(step.days || []);
     renderStepParams(step.action);
+    updateVariablesHint(index);  // Only show steps before this one
     
     // Fill in current values
     const params = ACTION_PARAMS[step.action] || [];
@@ -621,13 +790,6 @@ function openEditStep(index) {
         }
     });
     
-    // Populate condition builder
-    if (step.if) {
-        parseConditionToBuilder(step.if);
-    } else {
-        resetConditionBuilder();
-    }
-    
     showModal(elements.stepModal);
 }
 
@@ -639,10 +801,19 @@ function saveStep() {
     }
     
     const step = { action };
-    const condition = elements.stepCondition.value.trim();
-    if (condition) {
-        step.if = condition;
+    const delay = parseFloat(elements.stepDelay.value);
+    if (delay && delay > 0) {
+        step.delay = delay;
     }
+    
+    // Time conditions
+    const timeAfter = elements.stepTimeAfter.value;
+    const timeBefore = elements.stepTimeBefore.value;
+    const days = getSelectedDays();
+    
+    if (timeAfter) step.time_after = timeAfter;
+    if (timeBefore) step.time_before = timeBefore;
+    if (days.length > 0) step.days = days;
     
     // Collect params
     const paramDefs = ACTION_PARAMS[action] || [];
@@ -705,7 +876,37 @@ function moveStep(fromIndex, toIndex) {
     renderSteps();
 }
 
-function openRunModal() {
+async function openRunModal() {
+    // Auto-save before running
+    const name = elements.workflowName.value.trim().toLowerCase().replace(/\s+/g, '-');
+    if (!name) {
+        showToast('Enter a workflow name first', 'error');
+        return;
+    }
+    
+    // Save the workflow first
+    const workflow = {
+        description: elements.workflowDescription.value.trim(),
+        inputs: state.currentWorkflow.inputs || [],
+        steps: state.currentWorkflow.steps || []
+    };
+    
+    if (workflow.steps.length === 0) {
+        showToast('Add at least one step before running', 'error');
+        return;
+    }
+    
+    try {
+        await apiRequest('PUT', `/workflows/${name}`, workflow);
+        state.currentWorkflowName = name;
+        state.isNewWorkflow = false;
+        await loadWorkflows();
+    } catch (error) {
+        showToast(`Failed to save before run: ${error.message}`, 'error');
+        return;
+    }
+    
+    // Now show the run modal
     const inputs = state.currentWorkflow.inputs || [];
     
     if (inputs.length === 0) {
@@ -753,71 +954,6 @@ function openDeleteModal() {
 // Condition Builder Helpers
 // =============================================================================
 
-function resetConditionBuilder() {
-    elements.conditionEnabled.checked = false;
-    elements.conditionBuilder.classList.add('hidden');
-    elements.conditionSource.value = '';
-    elements.conditionField.value = '';
-    elements.conditionOperator.value = '!=';
-    elements.conditionValue.value = '';
-    elements.conditionPreview.textContent = '';
-    elements.stepCondition.value = '';
-}
-
-function parseConditionToBuilder(conditionStr) {
-    // Try to parse a condition string like "steps[0].text != ''"
-    const patterns = [
-        /^(steps\[\d+\])\.(\w+)\s*(!=|==|>=|<=|>|<)\s*(.+)$/,
-        /^(input)\.(\w+)\s*(!=|==|>=|<=|>|<)\s*(.+)$/
-    ];
-    
-    for (const pattern of patterns) {
-        const match = conditionStr.match(pattern);
-        if (match) {
-            elements.conditionEnabled.checked = true;
-            elements.conditionBuilder.classList.remove('hidden');
-            elements.conditionSource.value = match[1];
-            elements.conditionField.value = match[2];
-            elements.conditionOperator.value = match[3];
-            elements.conditionValue.value = match[4];
-            updateConditionPreview();
-            return;
-        }
-    }
-    
-    // Couldn't parse - show builder but leave empty, keep original value
-    elements.conditionEnabled.checked = true;
-    elements.conditionBuilder.classList.remove('hidden');
-    elements.stepCondition.value = conditionStr;
-    elements.conditionPreview.textContent = conditionStr + ' (custom)';
-}
-
-function updateConditionPreview() {
-    const source = elements.conditionSource.value;
-    const field = elements.conditionField.value.trim();
-    const operator = elements.conditionOperator.value;
-    const value = elements.conditionValue.value.trim();
-    
-    if (!source || !field) {
-        elements.conditionPreview.textContent = '';
-        elements.stepCondition.value = '';
-        return;
-    }
-    
-    const condition = `${source}.${field} ${operator} ${value || "''"}`;
-    elements.conditionPreview.textContent = condition;
-    elements.stepCondition.value = condition;
-}
-
-function toggleConditionBuilder() {
-    if (elements.conditionEnabled.checked) {
-        elements.conditionBuilder.classList.remove('hidden');
-        updateConditionPreview();
-    } else {
-        elements.conditionBuilder.classList.add('hidden');
-        elements.stepCondition.value = '';
-    }
-}
 
 // =============================================================================
 // UI Helpers
@@ -831,6 +967,37 @@ function showModal(modal) {
 function hideModal(modal) {
     modal.classList.add('hidden');
     modal.classList.remove('flex');
+}
+
+function downloadImage(imgId) {
+    const img = document.getElementById(imgId);
+    if (!img) return;
+    
+    // Create download link
+    const link = document.createElement('a');
+    link.href = img.src;
+    link.download = `screenshot_${new Date().toISOString().slice(0,19).replace(/[:-]/g, '')}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    showToast('Screenshot downloaded!', 'success');
+    
+    // Flash effect
+    img.classList.add('ring-2', 'ring-green-400');
+    setTimeout(() => img.classList.remove('ring-2', 'ring-green-400'), 500);
+}
+
+function copyBase64(imgId) {
+    const img = document.getElementById(imgId);
+    if (!img) return;
+    
+    const base64 = img.dataset.base64;
+    navigator.clipboard.writeText(base64).then(() => {
+        showToast('Base64 copied to clipboard!', 'success');
+    }).catch(() => {
+        showToast('Failed to copy', 'error');
+    });
 }
 
 function showToast(message, type = 'info') {
@@ -917,12 +1084,23 @@ function setupEventListeners() {
         renderStepParams(e.target.value);
     });
     
-    // Condition builder
-    elements.conditionEnabled.addEventListener('change', toggleConditionBuilder);
-    elements.conditionSource.addEventListener('change', updateConditionPreview);
-    elements.conditionField.addEventListener('input', updateConditionPreview);
-    elements.conditionOperator.addEventListener('change', updateConditionPreview);
-    elements.conditionValue.addEventListener('input', updateConditionPreview);
+    // Track last focused param input for variable insertion
+    elements.stepParamsContainer.addEventListener('focusin', (e) => {
+        if (e.target.matches('input[type="text"], textarea')) {
+            lastFocusedParamInput = e.target;
+        }
+    });
+    
+    // Day buttons toggle
+    $$('.day-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.classList.toggle('bg-accent');
+            btn.classList.toggle('border-accent');
+            btn.classList.toggle('text-white');
+            btn.classList.toggle('border-night-700');
+            btn.classList.toggle('text-night-400');
+        });
+    });
     
     // Close modals on backdrop click
     [elements.stepModal, elements.deleteModal, elements.runModal].forEach(modal => {

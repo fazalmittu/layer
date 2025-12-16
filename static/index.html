@@ -298,64 +298,48 @@
                     <!-- Dynamic params will be populated here -->
                 </div>
                 <!-- Condition Builder -->
-                <div class="border border-night-700 rounded-lg p-3 space-y-3">
+                <!-- Delay option -->
+                <div>
+                    <label class="block text-sm font-medium text-night-300 mb-1.5">Delay before step (optional)</label>
                     <div class="flex items-center gap-2">
-                        <input type="checkbox" id="condition-enabled" 
-                            class="w-4 h-4 bg-night-800 border-night-700 rounded text-accent focus:ring-accent focus:ring-offset-night-900">
-                        <label for="condition-enabled" class="text-sm font-medium text-night-300">Run only if condition is met</label>
-                    </div>
-                    <div id="condition-builder" class="hidden space-y-3">
-                        <div class="grid grid-cols-4 gap-2">
-                            <div class="col-span-2">
-                                <label class="block text-xs text-night-400 mb-1">Source</label>
-                                <select id="condition-source" class="action-select w-full bg-night-800 border border-night-700 rounded px-2 py-1.5 text-sm text-white appearance-none cursor-pointer focus:border-accent focus:outline-none">
-                                    <option value="">Select...</option>
-                                    <option value="steps[0]">steps[0] (Step 1 output)</option>
-                                    <option value="steps[1]">steps[1] (Step 2 output)</option>
-                                    <option value="steps[2]">steps[2] (Step 3 output)</option>
-                                    <option value="steps[3]">steps[3] (Step 4 output)</option>
-                                    <option value="steps[4]">steps[4] (Step 5 output)</option>
-                                    <option value="input">input (Runtime input)</option>
-                                </select>
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-xs text-night-400 mb-1">Field</label>
-                                <input type="text" id="condition-field" placeholder="e.g., text, path, success" 
-                                    class="w-full bg-night-800 border border-night-700 rounded px-2 py-1.5 text-sm text-white placeholder-night-500 focus:border-accent focus:outline-none">
-                            </div>
-                        </div>
-                        <div class="grid grid-cols-4 gap-2">
-                            <div class="col-span-2">
-                                <label class="block text-xs text-night-400 mb-1">Operator</label>
-                                <select id="condition-operator" class="action-select w-full bg-night-800 border border-night-700 rounded px-2 py-1.5 text-sm text-white appearance-none cursor-pointer focus:border-accent focus:outline-none">
-                                    <option value="!=">!= (not equal)</option>
-                                    <option value="==">== (equals)</option>
-                                    <option value=">"> > (greater than)</option>
-                                    <option value="<">< (less than)</option>
-                                    <option value=">=">≥ (greater or equal)</option>
-                                    <option value="<=">≤ (less or equal)</option>
-                                </select>
-                            </div>
-                            <div class="col-span-2">
-                                <label class="block text-xs text-night-400 mb-1">Value</label>
-                                <input type="text" id="condition-value" placeholder="e.g., '' or true" 
-                                    class="w-full bg-night-800 border border-night-700 rounded px-2 py-1.5 text-sm text-white placeholder-night-500 focus:border-accent focus:outline-none">
-                            </div>
-                        </div>
-                        <div class="bg-night-800/50 rounded px-2 py-1.5">
-                            <span class="text-xs text-night-400">Preview: </span>
-                            <code id="condition-preview" class="text-xs text-accent font-mono"></code>
-                        </div>
+                        <input type="number" id="step-delay" min="0" step="0.5" placeholder="0" 
+                            class="w-24 bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-white placeholder-night-500 focus:border-accent focus:outline-none">
+                        <span class="text-night-400 text-sm">seconds</span>
                     </div>
                 </div>
-                <!-- Hidden field for final condition value -->
-                <input type="hidden" id="step-condition" value="">
+                
+                <!-- Time-based conditions -->
+                <div class="border border-night-700 rounded-lg p-3 space-y-3">
+                    <label class="block text-sm font-medium text-night-300">Time conditions (optional)</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-night-400 mb-1">Only run after</label>
+                            <input type="time" id="step-time-after" 
+                                class="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-white focus:border-accent focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs text-night-400 mb-1">Only run before</label>
+                            <input type="time" id="step-time-before" 
+                                class="w-full bg-night-800 border border-night-700 rounded-lg px-3 py-2 text-white focus:border-accent focus:outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-night-400 mb-1.5">Only on these days</label>
+                        <div class="flex gap-1.5" id="step-days">
+                            <button type="button" data-day="mon" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Mon</button>
+                            <button type="button" data-day="tue" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Tue</button>
+                            <button type="button" data-day="wed" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Wed</button>
+                            <button type="button" data-day="thu" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Thu</button>
+                            <button type="button" data-day="fri" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Fri</button>
+                            <button type="button" data-day="sat" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Sat</button>
+                            <button type="button" data-day="sun" class="day-btn px-2 py-1 text-xs rounded border border-night-700 text-night-400 hover:border-accent hover:text-accent">Sun</button>
+                        </div>
+                        <p class="text-xs text-night-500 mt-1.5">Leave unselected to run any day</p>
+                    </div>
+                </div>
                 <div class="bg-night-800/50 rounded-lg p-3 text-xs text-night-400">
-                    <span class="font-medium text-night-300">Variables for params:</span>
-                    <code class="text-accent ml-1">{{ input.name }}</code>,
-                    <code class="text-accent">{{ steps[0].field }}</code>,
-                    <code class="text-accent">{{ timestamp }}</code>,
-                    <code class="text-accent">{{ date }}</code>
+                    <div class="font-medium text-night-300 mb-2">Click to insert variable:</div>
+                    <div id="variables-hint" class="flex flex-wrap gap-1.5"></div>
                 </div>
             </div>
             <div class="p-4 border-t border-night-700 flex justify-end gap-2">

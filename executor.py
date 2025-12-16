@@ -290,20 +290,43 @@ def open_url(url: str) -> str:
 # Spotify
 # =============================================================================
 
+def _convert_spotify_url_to_uri(url_or_uri: str) -> str:
+    """
+    Convert a Spotify URL to a URI, or return the URI if already in URI format.
+    
+    Accepts:
+        - spotify:track:xxx (URI format - returned as-is)
+        - https://open.spotify.com/track/xxx?si=... (URL format - converted)
+    """
+    import re
+    
+    # Already a URI
+    if url_or_uri.startswith("spotify:"):
+        return url_or_uri
+    
+    # URL format: https://open.spotify.com/{type}/{id}?si=...
+    match = re.match(r'https?://open\.spotify\.com/(track|album|playlist|artist|episode|show)/([a-zA-Z0-9]+)', url_or_uri)
+    if match:
+        content_type = match.group(1)
+        content_id = match.group(2)
+        return f"spotify:{content_type}:{content_id}"
+    
+    raise ExecutionError(
+        f"Invalid Spotify URL/URI. Expected 'spotify:track:xxx' or 'https://open.spotify.com/track/xxx', got: {url_or_uri}"
+    )
+
+
 def spotify_play(uri: str | None = None) -> dict:
     """
     Play a track, playlist, or album in Spotify.
     
     Args:
-        uri: Spotify URI (e.g., spotify:track:xxx, spotify:playlist:xxx)
+        uri: Spotify URI or URL (e.g., spotify:track:xxx, https://open.spotify.com/track/xxx)
              If None, resumes playback.
     """
     if uri:
-        # Validate URI format
-        if not uri.startswith("spotify:"):
-            raise ExecutionError(
-                f"Invalid Spotify URI format. Expected 'spotify:track:xxx' or 'spotify:playlist:xxx', got: {uri}"
-            )
+        # Convert URL to URI if needed
+        uri = _convert_spotify_url_to_uri(uri)
         
         script = f'''
 tell application "Spotify"

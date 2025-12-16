@@ -39,7 +39,13 @@ class WorkflowEngine:
     def _load_workflows(self) -> dict:
         """Load workflows from YAML file. Fresh read every time for instant updates."""
         if not self.workflows_path.exists():
-            return {"workflows": {}}
+            # Auto-copy from example file if it exists
+            example_path = self.workflows_path.with_suffix('.example.yaml')
+            if example_path.exists():
+                import shutil
+                shutil.copy(example_path, self.workflows_path)
+            else:
+                return {"workflows": {}}
         
         try:
             with open(self.workflows_path, "r") as f:
@@ -200,6 +206,34 @@ class WorkflowEngine:
         
         return ""
     
+    def _check_time_conditions(self, time_after: str | None, time_before: str | None, days: list) -> str | None:
+        """
+        Check time-based conditions.
+        Returns skip reason string if conditions not met, None if OK to run.
+        """
+        from datetime import datetime
+        
+        now = datetime.now()
+        current_time = now.strftime("%H:%M")
+        current_day = now.strftime("%a").lower()  # mon, tue, wed, etc.
+        
+        # Check day of week
+        if days:
+            if current_day not in days:
+                return f"not scheduled for {current_day} (only {', '.join(days)})"
+        
+        # Check time_after (only run after this time)
+        if time_after:
+            if current_time < time_after:
+                return f"too early (runs after {time_after}, now {current_time})"
+        
+        # Check time_before (only run before this time)
+        if time_before:
+            if current_time >= time_before:
+                return f"too late (runs before {time_before}, now {current_time})"
+        
+        return None  # All conditions met
+    
     def _evaluate_condition(self, condition: str, context: dict) -> bool:
         """
         Evaluate a condition string.
@@ -314,9 +348,25 @@ class WorkflowEngine:
         for i, step in enumerate(steps):
             action_name = step["action"]
             condition = step.get("if")
+            delay = step.get("delay")
+            time_after = step.get("time_after")
+            time_before = step.get("time_before")
+            days = step.get("days", [])
             params = step.get("params", {})
             
-            # Evaluate condition
+            # Evaluate time-based conditions
+            skip_reason = self._check_time_conditions(time_after, time_before, days)
+            if skip_reason:
+                results.append({
+                    "step": i,
+                    "action": action_name,
+                    "status": "skipped",
+                    "reason": skip_reason,
+                })
+                context["steps"].append({"skipped": True})
+                continue
+            
+            # Evaluate condition (still supported for YAML power users)
             if condition and not self._evaluate_condition(condition, context):
                 results.append({
                     "step": i,
@@ -326,6 +376,10 @@ class WorkflowEngine:
                 })
                 context["steps"].append({"skipped": True})
                 continue
+            
+            # Apply delay if specified
+            if delay and delay > 0:
+                time.sleep(float(delay))
             
             # Substitute variables in params
             resolved_params = self._substitute_variables(params, context)
