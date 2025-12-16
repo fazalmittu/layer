@@ -1,6 +1,16 @@
-# Layer
+<p align="center">
+  <img src="assets/layer_logo.png" alt="Layer" width="200">
+</p>
 
-A secure, minimal API layer for remote macOS automation. Turn your Mac into a programmable endpoint that can receive commands from AI agents, automation systems, or remote clients.
+<p align="center">
+  <strong>A secure, minimal API layer for remote macOS automation.</strong>
+</p>
+
+<p align="center">
+  Turn your Mac into a programmable endpoint that can receive commands from AI agents, automation systems, or remote clients.
+</p>
+
+---
 
 ## Features
 
@@ -225,14 +235,31 @@ Available layouts for `window-layout`:
 
 Open `http://localhost:8000` for the visual workflow editor.
 
-**Features:**
-- View and select workflows from sidebar
-- Create new workflows
-- Add/edit/delete steps with guided forms
-- Reorder steps with up/down buttons
-- Optional delay between steps
-- Run workflows with input prompts
-- View execution results
+### Workflow List & Editor
+
+Browse your workflows in the sidebar. Select one to view its steps, inputs, and description. Use the **Run**, **Save**, and **Delete** buttons in the top-right.
+
+![Workflow Editor](assets/example_workflow_page.png)
+
+Each step shows its action type and parameters. Use the arrow buttons to reorder steps, or click the edit/delete icons.
+
+### Adding & Editing Steps
+
+Click **+ Add Step** to create a new step. The modal lets you:
+
+- Select an action from the dropdown
+- Configure action-specific parameters
+- Add optional delays (seconds to wait before executing)
+- Set time conditions (only run after/before certain times, or on specific days)
+- Click variable chips to insert dynamic values into parameters
+
+![Step Editor](assets/example_step_creation.png)
+
+### Run Output
+
+After running a workflow, see detailed results for each step. Screenshots are displayed inline and can be downloaded or copied as base64.
+
+![Run Output](assets/example_workflow_after_success.png)
 
 ---
 
