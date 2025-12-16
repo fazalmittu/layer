@@ -14,7 +14,7 @@ const API_KEY_STORAGE_KEY = 'layer_api_key';
 const ACTION_PARAMS = {
     'open-app': [
         { name: 'app', type: 'select', label: 'Application', required: true, 
-          options: ['slack', 'vscode', 'terminal', 'safari', 'chrome', 'firefox', 'notes', 'calendar', 'mail', 'messages', 'discord', 'finder', 'spotify', 'preview', 'textedit'] }
+          options: ['slack', 'vscode', 'cursor', 'terminal', 'iterm', 'safari', 'chrome', 'firefox', 'notes', 'calendar', 'mail', 'messages', 'discord', 'finder', 'spotify', 'preview', 'textedit'] }
     ],
     'notify': [
         { name: 'title', type: 'text', label: 'Title', required: true },

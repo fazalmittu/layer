@@ -1,0 +1,1884 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Layer",
+    "description": "\nA secure, minimal API layer for remote macOS automation.\n\n## Features\n\n- **Custom Workflows** - Define multi-step automations in YAML\n- **Application Control** - Open whitelisted macOS apps\n- **Notes** - Create Apple Notes\n- **Clipboard** - Read/write system clipboard\n- **Screenshots** - Capture and save screenshots\n- **Notifications** - Send macOS notifications\n- **Text-to-Speech** - Speak text aloud\n- **System Controls** - Volume, sleep, lock, dark mode\n- **Shortcuts** - Run Shortcuts.app workflows\n- **Filesystem** - Read/write files in safe directories\n- **Pomodoro Timer** - Built-in focus timer with notifications\n\n## Authentication\n\nAll endpoints (except `/ping` and `/`) require the `X-API-Key` header.\n",
+    "contact": {
+      "name": "Layer API"
+    },
+    "license": {
+      "name": "MIT"
+    },
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/": {
+      "get": {
+        "summary": "Serve Ui",
+        "description": "Serve the workflow editor UI.",
+        "operationId": "serve_ui__get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ping": {
+      "get": {
+        "tags": [
+          "Health"
+        ],
+        "summary": "Ping",
+        "description": "Health check endpoint. No authentication required.",
+        "operationId": "ping_ping_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Ping Ping Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/allowed-apps": {
+      "get": {
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Allowed Apps",
+        "description": "List all whitelisted applications.\n\nReturns the list of applications that can be opened via the `/open-app` endpoint.",
+        "operationId": "allowed_apps_allowed_apps_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Allowed Apps Allowed Apps Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/open-app": {
+      "post": {
+        "tags": [
+          "Applications"
+        ],
+        "summary": "Open App Endpoint",
+        "description": "Open a whitelisted macOS application.\n\nThe app must be in the whitelist. Use `/allowed-apps` to see available apps.",
+        "operationId": "open_app_endpoint_open_app_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenAppRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Open App Endpoint Open App Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/create-note": {
+      "post": {
+        "tags": [
+          "Notes"
+        ],
+        "summary": "Create Note Endpoint",
+        "description": "Create a new Apple Note.\n\nCreates a note in the default Notes folder with the specified title and content.\nRequires automation permission for Notes.app.",
+        "operationId": "create_note_endpoint_create_note_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateNoteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Create Note Endpoint Create Note Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clipboard": {
+      "get": {
+        "tags": [
+          "Clipboard"
+        ],
+        "summary": "Get Clipboard Endpoint",
+        "description": "Get current clipboard text content.\n\nReturns the current text content of the system clipboard.",
+        "operationId": "get_clipboard_endpoint_clipboard_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Clipboard Endpoint Clipboard Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Clipboard"
+        ],
+        "summary": "Set Clipboard Endpoint",
+        "description": "Set clipboard text content.\n\nCopies the provided text to the system clipboard.",
+        "operationId": "set_clipboard_endpoint_clipboard_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SetClipboardRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Set Clipboard Endpoint Clipboard Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/screenshot": {
+      "get": {
+        "tags": [
+          "Screenshots"
+        ],
+        "summary": "Screenshot Endpoint",
+        "description": "Take a screenshot and return as base64 PNG.\n\nCaptures the entire screen and returns the image as a base64-encoded PNG string.",
+        "operationId": "screenshot_endpoint_screenshot_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Screenshot Endpoint Screenshot Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/open-url": {
+      "post": {
+        "tags": [
+          "URL"
+        ],
+        "summary": "Open Url Endpoint",
+        "description": "Open a URL in the default browser.\n\nOpens the specified URL using the system's default web browser.",
+        "operationId": "open_url_endpoint_open_url_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenURLRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Open Url Endpoint Open Url Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run-shortcut": {
+      "post": {
+        "tags": [
+          "Shortcuts"
+        ],
+        "summary": "Run Shortcut Endpoint",
+        "description": "Run a Shortcuts.app shortcut.\n\nExecutes a shortcut by name from the Shortcuts.app. Optionally pass input text.\nReturns any output produced by the shortcut.",
+        "operationId": "run_shortcut_endpoint_run_shortcut_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RunShortcutRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Run Shortcut Endpoint Run Shortcut Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notify": {
+      "post": {
+        "tags": [
+          "Notifications"
+        ],
+        "summary": "Notify Endpoint",
+        "description": "Send a macOS notification.\n\nDisplays a system notification with the specified title, message, and optional subtitle.",
+        "operationId": "notify_endpoint_notify_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotifyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Notify Endpoint Notify Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/speak": {
+      "post": {
+        "tags": [
+          "Speech"
+        ],
+        "summary": "Speak Endpoint",
+        "description": "Speak text using macOS text-to-speech.\n\nUses the system's text-to-speech engine to speak the provided text.\nOptionally specify a voice name and speech rate.",
+        "operationId": "speak_endpoint_speak_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpeakRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Speak Endpoint Speak Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/volume": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Get Volume Endpoint",
+        "description": "Get current volume settings.\n\nReturns the current volume level (0-100) and mute status.",
+        "operationId": "get_volume_endpoint_volume_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Volume Endpoint Volume Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Set Volume Endpoint",
+        "description": "Set system volume.\n\nSet the volume level (0-100) and/or mute/unmute the system.",
+        "operationId": "set_volume_endpoint_volume_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/VolumeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Set Volume Endpoint Volume Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/dark-mode": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Get Dark Mode Endpoint",
+        "description": "Get current dark mode status.\n\nReturns whether dark mode is currently enabled.",
+        "operationId": "get_dark_mode_endpoint_dark_mode_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Dark Mode Endpoint Dark Mode Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Toggle Dark Mode Endpoint",
+        "description": "Toggle dark mode.\n\nSwitches between light and dark mode. Requires accessibility permissions.",
+        "operationId": "toggle_dark_mode_endpoint_dark_mode_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Toggle Dark Mode Endpoint Dark Mode Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sleep": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Sleep Endpoint",
+        "description": "Put the system to sleep.\n\nImmediately puts the Mac to sleep.",
+        "operationId": "sleep_endpoint_sleep_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Sleep Endpoint Sleep Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/lock": {
+      "post": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Lock Endpoint",
+        "description": "Lock the screen.\n\nLocks the screen immediately. Requires accessibility permissions.",
+        "operationId": "lock_endpoint_lock_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Lock Endpoint Lock Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/list": {
+      "post": {
+        "tags": [
+          "Filesystem"
+        ],
+        "summary": "List Files Endpoint",
+        "description": "List files in a directory.\n\nLists files and directories at the specified path. Only works within safe directories\n(Desktop, Documents, Downloads).",
+        "operationId": "list_files_endpoint_files_list_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ListFilesRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response List Files Endpoint Files List Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/read": {
+      "post": {
+        "tags": [
+          "Filesystem"
+        ],
+        "summary": "Read File Endpoint",
+        "description": "Read a text file.\n\nReads the contents of a text file. Only works within safe directories\n(Desktop, Documents, Downloads). Has a configurable max size limit.",
+        "operationId": "read_file_endpoint_files_read_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadFileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Read File Endpoint Files Read Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/files/write": {
+      "post": {
+        "tags": [
+          "Filesystem"
+        ],
+        "summary": "Write File Endpoint",
+        "description": "Write to a file.\n\nWrites content to a file, optionally appending instead of overwriting.\nOnly works within safe directories (Desktop, Documents, Downloads).",
+        "operationId": "write_file_endpoint_files_write_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WriteFileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Write File Endpoint Files Write Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/downloads": {
+      "get": {
+        "tags": [
+          "Filesystem"
+        ],
+        "summary": "List Downloads Endpoint",
+        "description": "List files in Downloads folder.\n\nConvenience endpoint to list files in the user's Downloads directory.",
+        "operationId": "list_downloads_endpoint_downloads_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response List Downloads Endpoint Downloads Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pomodoro/start": {
+      "post": {
+        "tags": [
+          "Pomodoro"
+        ],
+        "summary": "Pomodoro Start",
+        "description": "Start a pomodoro work session.\n\nStarts a timed work session with automatic breaks. Optionally enables focus mode\nwhich mutes the system volume. After work_duration minutes, sends a notification\nand starts a break. After break_duration minutes, starts the next work session.",
+        "operationId": "pomodoro_start_pomodoro_start_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PomodoroStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Pomodoro Start Pomodoro Start Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pomodoro/status": {
+      "get": {
+        "tags": [
+          "Pomodoro"
+        ],
+        "summary": "Pomodoro Status",
+        "description": "Get current pomodoro timer status.\n\nReturns the current state of the pomodoro timer including whether it's active,\ncurrent phase (work/break), time remaining, and sessions completed.",
+        "operationId": "pomodoro_status_pomodoro_status_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Pomodoro Status Pomodoro Status Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pomodoro/stop": {
+      "post": {
+        "tags": [
+          "Pomodoro"
+        ],
+        "summary": "Pomodoro Stop",
+        "description": "Stop the current pomodoro session.\n\nStops the timer and restores original volume if focus mode was enabled.",
+        "operationId": "pomodoro_stop_pomodoro_stop_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Pomodoro Stop Pomodoro Stop Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pomodoro/skip": {
+      "post": {
+        "tags": [
+          "Pomodoro"
+        ],
+        "summary": "Pomodoro Skip",
+        "description": "Skip to the next phase.\n\nSkips to the next phase of the pomodoro cycle. If in a work session, counts it\nas complete and starts the break. If in a break, starts the next work session.",
+        "operationId": "pomodoro_skip_pomodoro_skip_post",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Pomodoro Skip Pomodoro Skip Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workflows": {
+      "get": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "List Workflows",
+        "description": "List all defined workflows.\n\nReturns a list of all workflow names and their descriptions.",
+        "operationId": "list_workflows_workflows_get",
+        "parameters": [
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response List Workflows Workflows Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/workflows/{name}": {
+      "get": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Get Workflow",
+        "description": "Get a specific workflow definition.\n\nReturns the full workflow definition including steps, inputs, and conditions.",
+        "operationId": "get_workflow_workflows__name__get",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Get Workflow Workflows  Name  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Create Or Update Workflow",
+        "description": "Create or update a workflow.\n\nCreates a new workflow or updates an existing one with the provided definition.\nThe workflow is saved to workflows.yaml.",
+        "operationId": "create_or_update_workflow_workflows__name__put",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Create Or Update Workflow Workflows  Name  Put"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Delete Workflow",
+        "description": "Delete a workflow.\n\nRemoves the workflow from workflows.yaml. This action cannot be undone.",
+        "operationId": "delete_workflow_workflows__name__delete",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Delete Workflow Workflows  Name  Delete"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/run/{name}": {
+      "post": {
+        "tags": [
+          "Workflows"
+        ],
+        "summary": "Run Workflow",
+        "description": "Execute a workflow by name.\n\nRuns all steps in the workflow sequentially. Optional JSON body can provide\nruntime input values that override defaults defined in the workflow.",
+        "operationId": "run_workflow_run__name__post",
+        "parameters": [
+          {
+            "name": "name",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Name"
+            }
+          },
+          {
+            "name": "X-API-Key",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "title": "X-Api-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "title": "Response Run Workflow Run  Name  Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "CreateNoteRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Note title"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Note body content"
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "content"
+        ],
+        "title": "CreateNoteRequest",
+        "description": "Request body for creating a new Apple Note."
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "type": "array",
+            "title": "Detail"
+          }
+        },
+        "type": "object",
+        "title": "HTTPValidationError"
+      },
+      "ListFilesRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "Directory path to list"
+          },
+          "show_hidden": {
+            "type": "boolean",
+            "title": "Show Hidden",
+            "description": "Include hidden files",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "ListFilesRequest",
+        "description": "Request body for listing files."
+      },
+      "NotifyRequest": {
+        "properties": {
+          "title": {
+            "type": "string",
+            "title": "Title",
+            "description": "Notification title"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message",
+            "description": "Notification body text"
+          },
+          "subtitle": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Subtitle",
+            "description": "Optional subtitle"
+          },
+          "sound": {
+            "type": "boolean",
+            "title": "Sound",
+            "description": "Play notification sound",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "title",
+          "message"
+        ],
+        "title": "NotifyRequest",
+        "description": "Request body for sending a notification."
+      },
+      "OpenAppRequest": {
+        "properties": {
+          "app": {
+            "type": "string",
+            "title": "App",
+            "description": "App key from whitelist (e.g., 'spotify', 'vscode')"
+          }
+        },
+        "type": "object",
+        "required": [
+          "app"
+        ],
+        "title": "OpenAppRequest",
+        "description": "Request body for opening an application."
+      },
+      "OpenURLRequest": {
+        "properties": {
+          "url": {
+            "type": "string",
+            "title": "Url",
+            "description": "URL to open in default browser"
+          }
+        },
+        "type": "object",
+        "required": [
+          "url"
+        ],
+        "title": "OpenURLRequest",
+        "description": "Request body for opening a URL."
+      },
+      "PomodoroStartRequest": {
+        "properties": {
+          "work_duration": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Work Duration",
+            "description": "Work duration in minutes (default 25)",
+            "default": 25
+          },
+          "break_duration": {
+            "type": "integer",
+            "maximum": 60.0,
+            "minimum": 1.0,
+            "title": "Break Duration",
+            "description": "Break duration in minutes (default 5)",
+            "default": 5
+          },
+          "focus_mode": {
+            "type": "boolean",
+            "title": "Focus Mode",
+            "description": "Enable focus mode (mute, dark mode)",
+            "default": true
+          }
+        },
+        "type": "object",
+        "title": "PomodoroStartRequest",
+        "description": "Request body for starting a pomodoro session."
+      },
+      "ReadFileRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "File path to read"
+          },
+          "max_size": {
+            "type": "integer",
+            "title": "Max Size",
+            "description": "Max file size in bytes (default 1MB)",
+            "default": 1048576
+          }
+        },
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "title": "ReadFileRequest",
+        "description": "Request body for reading a file."
+      },
+      "RunShortcutRequest": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "Name of the Shortcut to run"
+          },
+          "input": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input",
+            "description": "Optional input text for the Shortcut"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "title": "RunShortcutRequest",
+        "description": "Request body for running a Shortcut."
+      },
+      "SetClipboardRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Text to copy to clipboard"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SetClipboardRequest",
+        "description": "Request body for setting clipboard content."
+      },
+      "SpeakRequest": {
+        "properties": {
+          "text": {
+            "type": "string",
+            "title": "Text",
+            "description": "Text to speak"
+          },
+          "voice": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Voice",
+            "description": "Voice name (e.g., 'Samantha', 'Alex')"
+          },
+          "rate": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rate",
+            "description": "Speech rate (words per minute, default ~175)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "title": "SpeakRequest",
+        "description": "Request body for text-to-speech."
+      },
+      "ValidationError": {
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Location"
+          },
+          "msg": {
+            "type": "string",
+            "title": "Message"
+          },
+          "type": {
+            "type": "string",
+            "title": "Error Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError"
+      },
+      "VolumeRequest": {
+        "properties": {
+          "level": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level",
+            "description": "Volume level 0-100"
+          },
+          "mute": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mute",
+            "description": "Mute/unmute (overrides level if set)"
+          }
+        },
+        "type": "object",
+        "title": "VolumeRequest",
+        "description": "Request body for setting volume."
+      },
+      "WriteFileRequest": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path",
+            "description": "File path to write"
+          },
+          "content": {
+            "type": "string",
+            "title": "Content",
+            "description": "Content to write"
+          },
+          "append": {
+            "type": "boolean",
+            "title": "Append",
+            "description": "Append to file instead of overwrite",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "content"
+        ],
+        "title": "WriteFileRequest",
+        "description": "Request body for writing a file."
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Health",
+      "description": "Health check endpoints"
+    },
+    {
+      "name": "Applications",
+      "description": "Control whitelisted macOS applications"
+    },
+    {
+      "name": "Notes",
+      "description": "Create Apple Notes"
+    },
+    {
+      "name": "Clipboard",
+      "description": "Read and write system clipboard"
+    },
+    {
+      "name": "Screenshots",
+      "description": "Capture screen content"
+    },
+    {
+      "name": "URL",
+      "description": "Open URLs in default browser"
+    },
+    {
+      "name": "Shortcuts",
+      "description": "Run Shortcuts.app workflows"
+    },
+    {
+      "name": "Notifications",
+      "description": "Send macOS notifications"
+    },
+    {
+      "name": "Speech",
+      "description": "Text-to-speech functionality"
+    },
+    {
+      "name": "System",
+      "description": "System controls (volume, dark mode, sleep, lock)"
+    },
+    {
+      "name": "Filesystem",
+      "description": "Read and write files in safe directories"
+    },
+    {
+      "name": "Pomodoro",
+      "description": "Built-in pomodoro timer with notifications"
+    },
+    {
+      "name": "Workflows",
+      "description": "Custom multi-step automations defined in YAML"
+    }
+  ]
+}

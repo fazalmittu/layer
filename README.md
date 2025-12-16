@@ -1,13 +1,15 @@
 # Layer
 
-A secure, minimal API layer for remote macOS automation. Turn your Mac into a programmable endpoint that can receive commands from remote users, AI agents, or automation systems.
+A secure, minimal API layer for remote macOS automation. Turn your Mac into a programmable endpoint that can receive commands from AI agents, automation systems, or remote clients.
 
 ## Features
 
+- **Custom Workflows** - Define multi-step automations in YAML, chain any actions together
+- **Visual Workflow Editor** - Web UI for creating and managing workflows
 - **Application Control** - Open whitelisted macOS apps
 - **Notes** - Create Apple Notes
 - **Clipboard** - Read/write system clipboard
-- **Screenshots** - Capture screen as base64 PNG
+- **Screenshots** - Capture and save screenshots
 - **Notifications** - Send macOS notifications
 - **Text-to-Speech** - Speak text aloud
 - **System Controls** - Volume, sleep, lock
@@ -15,7 +17,6 @@ A secure, minimal API layer for remote macOS automation. Turn your Mac into a pr
 - **Filesystem** - Read/write files in safe directories
 - **Pomodoro Timer** - Built-in focus timer with notifications
 - **Window Layout** - Arrange windows (requires Rectangle app)
-- **Custom Workflows** - Define your own multi-step automations in YAML
 - **API Key Authentication** - Secure all endpoints
 
 ## Prerequisites
@@ -32,85 +33,83 @@ The `window-layout` action requires [Rectangle](https://rectangleapp.com/) to be
 brew install --cask rectangle
 ```
 
-After installing, you'll need to grant Rectangle accessibility permissions:
+After installing, grant Rectangle accessibility permissions:
 1. Open **System Preferences > Privacy & Security > Accessibility**
 2. Enable Rectangle in the list
 
-If Rectangle is not installed, any workflow using `window-layout` will fail with a helpful error message.
-
-## Setup
-
-### 1. Clone and Navigate
+## Quick Start
 
 ```bash
+# Clone and enter directory
 cd layer
-```
 
-### 2. Create Virtual Environment
-
-```bash
+# Create virtual environment
 python3 -m venv venv
 source venv/bin/activate
-```
 
-### 3. Install Dependencies
-
-```bash
+# Install dependencies
 pip install -r requirements.txt
-```
 
-### 4. Configure Environment
-
-```bash
-# Generate a secure API key
+# Generate API key and create .env
 python -c "import secrets; print(secrets.token_urlsafe(32))"
-
-# Create .env file with your key
 echo "MAC_API_KEY=your-generated-key-here" > .env
-```
 
-### 5. Grant Permissions
-
-The first time you run commands, macOS will prompt for permissions:
-
-1. Allow Terminal (or your IDE) to control apps in **System Preferences > Privacy & Security > Automation**
-2. If prompted, allow accessibility permissions
-
-## Running the Server
-
-```bash
-source venv/bin/activate
+# Start the server
 python main.py
 ```
 
-The API will be available at `http://localhost:8000`
+The API runs at `http://localhost:8000`
+
+**Open the Workflow Editor:** Navigate to `http://localhost:8000` in your browser.
 
 ---
 
 ## Custom Workflows
 
-The killer feature of Layer is **custom workflows**. Define multi-step automations in `workflows.yaml` and call them via a single API endpoint.
+The core feature of Layer is **custom workflows**. Define multi-step automations in `workflows.yaml` or via the web UI.
 
 ### Example: workflows.yaml
 
 ```yaml
 workflows:
-  morning-routine:
-    description: "Start your morning with apps and a greeting"
-    inputs:
-      - name: greeting
-        default: "Good morning!"
+  morning-setup:
+    description: "Open apps and arrange windows for work"
     steps:
       - action: open-app
         params:
           app: slack
       - action: open-app
         params:
-          app: vscode
+          app: cursor
+      - action: window-layout
+        params:
+          layout: left-half
       - action: notify
         params:
-          title: "Morning Routine"
-          message: "{{ input.greeting }}"
+          title: "Ready to work"
+          message: "Your workspace is set up"
+
+  bug-capture:
+    description: "Screenshot + clipboard to Notes"
+    inputs:
+      - name: title
+        default: "Bug Report"
+    steps:
+      - action: save-screenshot
+      - action: clipboard-get
+      - action: create-note
+        params:
+          title: "{{ input.title }} - {{ timestamp }}"
+          content: |
+            ## Screenshot
+            Saved to: {{ steps[0].path }}
+            
+            ## Clipboard
+            {{ steps[1].text }}
+      - action: notify
+        params:
+          title: "Bug Captured"
+          message: "Screenshot saved to Downloads"
 
   focus-session:
     description: "Start a focus session"
@@ -126,31 +125,15 @@ workflows:
           work_duration: "{{ input.duration }}"
       - action: notify
         params:
-          title: "Focus Started"
-          message: "{{ input.duration }} minutes"
-
-  coding-layout:
-    description: "Set up split windows for coding"
-    steps:
-      - action: open-app
-        params:
-          app: vscode
-      - action: window-layout
-        params:
-          layout: left-half
-      - action: open-app
-        params:
-          app: terminal
-      - action: window-layout
-        params:
-          layout: right-half
+          title: "Focus Mode"
+          message: "{{ input.duration }} minutes - let's go!"
 ```
 
-### Running a Workflow
+### Running Workflows
 
 ```bash
-# Run with default inputs
-curl -X POST http://localhost:8000/run/morning-routine \
+# Run with defaults
+curl -X POST http://localhost:8000/run/morning-setup \
   -H "X-API-Key: YOUR_KEY"
 
 # Run with custom inputs
@@ -162,25 +145,25 @@ curl -X POST http://localhost:8000/run/focus-session \
 
 ### Variable Substitution
 
-Use `{{ }}` syntax to reference:
+Use `{{ }}` syntax in params:
 
 | Variable | Description |
 |----------|-------------|
-| `{{ input.name }}` | Runtime input passed when calling the workflow |
-| `{{ steps[0].field }}` | Output from a previous step |
-| `{{ timestamp }}` | Current timestamp (YYYY-MM-DD HH:MM:SS) |
-| `{{ date }}` | Current date (YYYY-MM-DD) |
-| `{{ time }}` | Current time (HH:MM:SS) |
+| `{{ input.name }}` | Runtime input value |
+| `{{ steps[0].field }}` | Output from previous step |
+| `{{ timestamp }}` | Current datetime |
+| `{{ date }}` | Current date |
+| `{{ time }}` | Current time |
 
-### Conditional Execution
+### Conditional Steps
 
-Add `if` to skip steps based on conditions:
+Skip steps based on conditions:
 
 ```yaml
 steps:
   - action: clipboard-get
   - action: notify
-    if: "steps[0].text != ''"
+    if: steps[0].text != ''
     params:
       title: "Clipboard has content"
       message: "{{ steps[0].text }}"
@@ -190,173 +173,133 @@ Supported operators: `==`, `!=`, `>`, `<`, `>=`, `<=`
 
 ### Available Actions
 
-| Action | Description |
-|--------|-------------|
-| `open-app` | Open a whitelisted application |
-| `notify` | Send a macOS notification |
-| `speak` | Text-to-speech |
-| `screenshot` | Capture screen |
-| `clipboard-get` | Get clipboard text |
-| `clipboard-set` | Set clipboard text |
-| `create-note` | Create an Apple Note |
-| `open-url` | Open URL in browser |
-| `volume` | Set volume level or mute |
-| `run-shortcut` | Run a Shortcuts.app shortcut |
-| `sleep` | Put system to sleep |
-| `lock` | Lock the screen |
-| `window-layout` | Arrange windows (requires Rectangle) |
-| `pomodoro-start` | Start a pomodoro timer |
-| `pomodoro-stop` | Stop the pomodoro timer |
-| `pomodoro-status` | Get pomodoro status |
+| Action | Description | Key Params |
+|--------|-------------|------------|
+| `open-app` | Open an application | `app` |
+| `notify` | Send notification | `title`, `message` |
+| `speak` | Text-to-speech | `text` |
+| `screenshot` | Capture as base64 | - |
+| `save-screenshot` | Save to Downloads | `filename` (optional) |
+| `clipboard-get` | Get clipboard text | - |
+| `clipboard-set` | Set clipboard text | `text` |
+| `create-note` | Create Apple Note | `title`, `content` |
+| `open-url` | Open URL in browser | `url` |
+| `volume` | Set volume | `level`, `mute` |
+| `sleep` | Put Mac to sleep | - |
+| `lock` | Lock screen | - |
+| `window-layout` | Arrange windows | `layout`, `app` |
+| `run-shortcut` | Run Shortcuts.app | `name`, `input` |
+| `pomodoro-start` | Start timer | `work_duration`, `break_duration` |
+| `pomodoro-stop` | Stop timer | - |
+| `pomodoro-status` | Get timer status | - |
 
 ### Window Layouts (Rectangle)
 
-Available layout options for `window-layout`:
+Available layouts for `window-layout`:
 
 - `left-half`, `right-half`, `top-half`, `bottom-half`
 - `top-left`, `top-right`, `bottom-left`, `bottom-right`
 - `first-third`, `center-third`, `last-third`
 - `first-two-thirds`, `last-two-thirds`
 - `maximize`, `almost-maximize`, `center`, `restore`
-- `smaller`, `larger`
+
+---
+
+## Web UI
+
+Open `http://localhost:8000` for the visual workflow editor.
+
+**Features:**
+- View and select workflows from sidebar
+- Create new workflows
+- Add/edit/delete steps with guided forms
+- Reorder steps with up/down buttons
+- Condition builder (no manual syntax)
+- Run workflows with input prompts
+- View execution results
 
 ---
 
 ## API Endpoints
 
-All endpoints (except `/ping`) require the `X-API-Key` header.
+All endpoints (except `/ping` and `/`) require the `X-API-Key` header.
 
-### Core Endpoints
+### Workflows
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| `GET` | `/ping` | Health check (no auth required) |
-| **Apps** | | |
-| `GET` | `/allowed-apps` | List whitelisted applications |
-| `POST` | `/open-app` | Open a whitelisted application |
-| **Notes** | | |
-| `POST` | `/create-note` | Create a new Apple Note |
-| **Clipboard** | | |
-| `GET` | `/clipboard` | Get clipboard text content |
-| `POST` | `/clipboard` | Set clipboard text content |
-| **Screenshot** | | |
-| `GET` | `/screenshot` | Capture screen as base64 PNG |
-| **Browser** | | |
-| `POST` | `/open-url` | Open URL in default browser |
-| **Shortcuts** | | |
-| `POST` | `/run-shortcut` | Run a Shortcuts.app shortcut |
-| **Notifications** | | |
-| `POST` | `/notify` | Send a macOS notification |
-| **Speech** | | |
-| `POST` | `/speak` | Text-to-speech output |
-| **System** | | |
-| `GET` | `/volume` | Get volume level and mute status |
-| `POST` | `/volume` | Set volume level or mute/unmute |
-| `POST` | `/sleep` | Put system to sleep |
-| `POST` | `/lock` | Lock the screen |
-| **Filesystem** | | |
-| `POST` | `/files/list` | List files in a directory |
-| `POST` | `/files/read` | Read a text file |
-| `POST` | `/files/write` | Write to a file |
-| `GET` | `/downloads` | List Downloads folder |
-| **Pomodoro** | | |
-| `POST` | `/pomodoro/start` | Start a pomodoro timer |
-| `GET` | `/pomodoro/status` | Get current timer status |
-| `POST` | `/pomodoro/stop` | Stop the timer |
-| `POST` | `/pomodoro/skip` | Skip to next phase |
-| **Workflows** | | |
 | `GET` | `/workflows` | List all workflows |
 | `GET` | `/workflows/{name}` | Get workflow definition |
-| `PUT` | `/workflows/{name}` | Create/update a workflow |
-| `DELETE` | `/workflows/{name}` | Delete a workflow |
-| `POST` | `/run/{name}` | Execute a workflow |
+| `PUT` | `/workflows/{name}` | Create/update workflow |
+| `DELETE` | `/workflows/{name}` | Delete workflow |
+| `POST` | `/run/{name}` | Execute workflow |
+
+### Core Actions
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/ping` | Health check |
+| `GET` | `/allowed-apps` | List whitelisted apps |
+| `POST` | `/open-app` | Open application |
+| `POST` | `/create-note` | Create Apple Note |
+| `GET` | `/clipboard` | Get clipboard |
+| `POST` | `/clipboard` | Set clipboard |
+| `GET` | `/screenshot` | Capture screenshot (base64) |
+| `POST` | `/open-url` | Open URL |
+| `POST` | `/run-shortcut` | Run Shortcut |
+| `POST` | `/notify` | Send notification |
+| `POST` | `/speak` | Text-to-speech |
+| `GET` | `/volume` | Get volume |
+| `POST` | `/volume` | Set volume |
+| `POST` | `/sleep` | Sleep Mac |
+| `POST` | `/lock` | Lock screen |
+
+### Pomodoro
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/pomodoro/start` | Start timer |
+| `GET` | `/pomodoro/status` | Get status |
+| `POST` | `/pomodoro/stop` | Stop timer |
+| `POST` | `/pomodoro/skip` | Skip to next phase |
+
+### Filesystem
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `POST` | `/files/list` | List directory |
+| `POST` | `/files/read` | Read file |
+| `POST` | `/files/write` | Write file |
+| `GET` | `/downloads` | List Downloads |
 
 ---
 
-## Examples
+## Whitelisted Applications
 
-### Run a Workflow
+Default apps that can be opened:
 
-```bash
-curl -X POST http://localhost:8000/run/morning-routine \
-  -H "X-API-Key: YOUR_KEY"
-```
+`spotify`, `safari`, `chrome`, `firefox`, `vscode`, `cursor`, `terminal`, `iterm`, `notes`, `calendar`, `mail`, `messages`, `slack`, `discord`, `finder`, `preview`, `textedit`
 
-Response:
-```json
-{
-  "status": "ok",
-  "data": {
-    "workflow": "morning-routine",
-    "steps_executed": 4,
-    "steps_skipped": 0,
-    "results": [
-      {"step": 0, "action": "open-app", "status": "ok"},
-      {"step": 1, "action": "open-app", "status": "ok"},
-      {"step": 2, "action": "notify", "status": "ok"},
-      {"step": 3, "action": "speak", "status": "ok"}
-    ],
-    "duration_ms": 1234
-  }
+Add more in `config.py`:
+
+```python
+ALLOWED_APPS = {
+    "myapp": "My Application Name",
+    ...
 }
 ```
 
-### Create a Workflow via API
-
-```bash
-curl -X PUT http://localhost:8000/workflows/my-workflow \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "description": "My custom workflow",
-    "steps": [
-      {"action": "notify", "params": {"title": "Hello", "message": "World"}}
-    ]
-  }'
-```
-
-### Start a Pomodoro
-
-```bash
-curl -X POST http://localhost:8000/pomodoro/start \
-  -H "X-API-Key: YOUR_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"work_duration": 25, "break_duration": 5, "focus_mode": true}'
-```
-
 ---
 
-## Error Responses
-
-All errors follow the same format:
-
-```json
-{
-  "status": "error",
-  "message": "Human-readable error description",
-  "detail": null
-}
-```
-
-| Code | Meaning |
-|------|---------|
-| 200 | Success |
-| 400 | Invalid request or workflow error |
-| 401 | Missing or invalid API key |
-| 404 | Resource not found |
-| 500 | Execution error |
-
----
-
-## Security Notes
+## Security
 
 ⚠️ **Important:**
 
-1. **Never expose port 8000 directly to the internet** without a secure tunnel
-2. **Keep your API key secret** - treat it like a password
-3. **Use HTTPS** when accessing remotely (via ngrok or Cloudflare Tunnel)
+1. Never expose port 8000 directly to the internet
+2. Keep your API key secret
+3. Use HTTPS via tunnel for remote access
 
-### Remote Access (Optional)
+### Remote Access
 
 ```bash
 # Using ngrok
@@ -365,25 +308,30 @@ ngrok http 8000
 
 ---
 
+## Permissions
+
+macOS will prompt for permissions on first use:
+
+1. **System Preferences > Privacy & Security > Automation**
+   - Enable Terminal/your app for Notes, System Events
+   
+2. **System Preferences > Privacy & Security > Accessibility**
+   - Required for lock screen, window layout
+
+---
+
 ## Troubleshooting
 
-### "MAC_API_KEY not set" Error
+**"MAC_API_KEY not set"**
+- Create `.env` file with your API key
 
-Make sure you created a `.env` file with your API key.
+**Window layout not working**
+- Install Rectangle: `brew install --cask rectangle`
+- Grant accessibility permissions
+- Ensure Rectangle is running
 
-### Notes Permission Denied
+**Lock screen fails**
+- Grant accessibility permissions to Terminal
 
-1. Open **System Preferences > Privacy & Security > Automation**
-2. Enable your terminal app for **Notes**
-
-### Window Layout Not Working
-
-1. Install Rectangle: `brew install --cask rectangle`
-2. Grant accessibility permissions to Rectangle
-3. Make sure Rectangle is running
-
-### AppleScript Timeout
-
-1. Check if the target app is responding
-2. Try the action manually first
-3. Restart the app if needed
+**Notes permission denied**
+- Enable automation permissions for Notes

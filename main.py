@@ -68,9 +68,92 @@ from workflow_engine import workflow_engine, WorkflowError
 # App Initialization
 # =============================================================================
 
+tags_metadata = [
+    {
+        "name": "Health",
+        "description": "Health check endpoints",
+    },
+    {
+        "name": "Applications",
+        "description": "Control whitelisted macOS applications",
+    },
+    {
+        "name": "Notes",
+        "description": "Create Apple Notes",
+    },
+    {
+        "name": "Clipboard",
+        "description": "Read and write system clipboard",
+    },
+    {
+        "name": "Screenshots",
+        "description": "Capture screen content",
+    },
+    {
+        "name": "URL",
+        "description": "Open URLs in default browser",
+    },
+    {
+        "name": "Shortcuts",
+        "description": "Run Shortcuts.app workflows",
+    },
+    {
+        "name": "Notifications",
+        "description": "Send macOS notifications",
+    },
+    {
+        "name": "Speech",
+        "description": "Text-to-speech functionality",
+    },
+    {
+        "name": "System",
+        "description": "System controls (volume, dark mode, sleep, lock)",
+    },
+    {
+        "name": "Filesystem",
+        "description": "Read and write files in safe directories",
+    },
+    {
+        "name": "Pomodoro",
+        "description": "Built-in pomodoro timer with notifications",
+    },
+    {
+        "name": "Workflows",
+        "description": "Custom multi-step automations defined in YAML",
+    },
+]
+
 app = FastAPI(
     title="Layer",
-    description="A secure API for remote macOS automation",
+    description="""
+A secure, minimal API layer for remote macOS automation.
+
+## Features
+
+- **Custom Workflows** - Define multi-step automations in YAML
+- **Application Control** - Open whitelisted macOS apps
+- **Notes** - Create Apple Notes
+- **Clipboard** - Read/write system clipboard
+- **Screenshots** - Capture and save screenshots
+- **Notifications** - Send macOS notifications
+- **Text-to-Speech** - Speak text aloud
+- **System Controls** - Volume, sleep, lock, dark mode
+- **Shortcuts** - Run Shortcuts.app workflows
+- **Filesystem** - Read/write files in safe directories
+- **Pomodoro Timer** - Built-in focus timer with notifications
+
+## Authentication
+
+All endpoints (except `/ping` and `/`) require the `X-API-Key` header.
+""",
+    version="1.0.0",
+    openapi_tags=tags_metadata,
+    contact={
+        "name": "Layer API",
+    },
+    license_info={
+        "name": "MIT",
+    },
 )
 
 # Mount static files
@@ -140,9 +223,9 @@ async def serve_ui():
 # Health Check
 # =============================================================================
 
-@app.get("/ping")
+@app.get("/ping", tags=["Health"])
 async def ping() -> dict[str, Any]:
-    """Health check endpoint. No auth required."""
+    """Health check endpoint. No authentication required."""
     return success_response({"message": "pong"})
 
 
@@ -150,17 +233,25 @@ async def ping() -> dict[str, Any]:
 # Application Control
 # =============================================================================
 
-@app.get("/allowed-apps")
+@app.get("/allowed-apps", tags=["Applications"])
 async def allowed_apps(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """List all whitelisted applications."""
+    """
+    List all whitelisted applications.
+    
+    Returns the list of applications that can be opened via the `/open-app` endpoint.
+    """
     require_auth(api_key)
     apps = [AllowedApp(key=key, mac_app_name=name).model_dump() for key, name in ALLOWED_APPS.items()]
     return success_response({"allowed": apps})
 
 
-@app.post("/open-app")
+@app.post("/open-app", tags=["Applications"])
 async def open_app_endpoint(request: OpenAppRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Open a whitelisted macOS application."""
+    """
+    Open a whitelisted macOS application.
+    
+    The app must be in the whitelist. Use `/allowed-apps` to see available apps.
+    """
     require_auth(api_key)
     
     app_key = request.app.lower().strip()
@@ -178,9 +269,14 @@ async def open_app_endpoint(request: OpenAppRequest, api_key: str = Header(None,
 # Notes
 # =============================================================================
 
-@app.post("/create-note")
+@app.post("/create-note", tags=["Notes"])
 async def create_note_endpoint(request: CreateNoteRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Create a new Apple Note."""
+    """
+    Create a new Apple Note.
+    
+    Creates a note in the default Notes folder with the specified title and content.
+    Requires automation permission for Notes.app.
+    """
     require_auth(api_key)
     
     if not request.title.strip():
@@ -199,9 +295,13 @@ async def create_note_endpoint(request: CreateNoteRequest, api_key: str = Header
 # Clipboard
 # =============================================================================
 
-@app.get("/clipboard")
+@app.get("/clipboard", tags=["Clipboard"])
 async def get_clipboard_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Get current clipboard text content."""
+    """
+    Get current clipboard text content.
+    
+    Returns the current text content of the system clipboard.
+    """
     require_auth(api_key)
     try:
         text = get_clipboard()
@@ -210,9 +310,13 @@ async def get_clipboard_endpoint(api_key: str = Header(None, alias="X-API-Key"))
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/clipboard")
+@app.post("/clipboard", tags=["Clipboard"])
 async def set_clipboard_endpoint(request: SetClipboardRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Set clipboard text content."""
+    """
+    Set clipboard text content.
+    
+    Copies the provided text to the system clipboard.
+    """
     require_auth(api_key)
     try:
         message = set_clipboard(request.text)
@@ -225,9 +329,13 @@ async def set_clipboard_endpoint(request: SetClipboardRequest, api_key: str = He
 # Screenshot
 # =============================================================================
 
-@app.get("/screenshot")
+@app.get("/screenshot", tags=["Screenshots"])
 async def screenshot_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Take a screenshot and return as base64 PNG."""
+    """
+    Take a screenshot and return as base64 PNG.
+    
+    Captures the entire screen and returns the image as a base64-encoded PNG string.
+    """
     require_auth(api_key)
     try:
         b64_data = take_screenshot()
@@ -240,9 +348,13 @@ async def screenshot_endpoint(api_key: str = Header(None, alias="X-API-Key")) ->
 # URL
 # =============================================================================
 
-@app.post("/open-url")
+@app.post("/open-url", tags=["URL"])
 async def open_url_endpoint(request: OpenURLRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Open a URL in the default browser."""
+    """
+    Open a URL in the default browser.
+    
+    Opens the specified URL using the system's default web browser.
+    """
     require_auth(api_key)
     try:
         message = open_url(request.url)
@@ -255,9 +367,14 @@ async def open_url_endpoint(request: OpenURLRequest, api_key: str = Header(None,
 # Shortcuts
 # =============================================================================
 
-@app.post("/run-shortcut")
+@app.post("/run-shortcut", tags=["Shortcuts"])
 async def run_shortcut_endpoint(request: RunShortcutRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Run a Shortcuts.app shortcut."""
+    """
+    Run a Shortcuts.app shortcut.
+    
+    Executes a shortcut by name from the Shortcuts.app. Optionally pass input text.
+    Returns any output produced by the shortcut.
+    """
     require_auth(api_key)
     try:
         output = run_shortcut(request.name, request.input)
@@ -270,9 +387,13 @@ async def run_shortcut_endpoint(request: RunShortcutRequest, api_key: str = Head
 # Notifications
 # =============================================================================
 
-@app.post("/notify")
+@app.post("/notify", tags=["Notifications"])
 async def notify_endpoint(request: NotifyRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Send a macOS notification."""
+    """
+    Send a macOS notification.
+    
+    Displays a system notification with the specified title, message, and optional subtitle.
+    """
     require_auth(api_key)
     try:
         message = send_notification(request.title, request.message, request.subtitle, request.sound)
@@ -285,9 +406,14 @@ async def notify_endpoint(request: NotifyRequest, api_key: str = Header(None, al
 # Text-to-Speech
 # =============================================================================
 
-@app.post("/speak")
+@app.post("/speak", tags=["Speech"])
 async def speak_endpoint(request: SpeakRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Speak text using macOS text-to-speech."""
+    """
+    Speak text using macOS text-to-speech.
+    
+    Uses the system's text-to-speech engine to speak the provided text.
+    Optionally specify a voice name and speech rate.
+    """
     require_auth(api_key)
     try:
         message = speak_text(request.text, request.voice, request.rate)
@@ -300,9 +426,13 @@ async def speak_endpoint(request: SpeakRequest, api_key: str = Header(None, alia
 # System Controls
 # =============================================================================
 
-@app.get("/volume")
+@app.get("/volume", tags=["System"])
 async def get_volume_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Get current volume settings."""
+    """
+    Get current volume settings.
+    
+    Returns the current volume level (0-100) and mute status.
+    """
     require_auth(api_key)
     try:
         vol = get_volume()
@@ -311,9 +441,13 @@ async def get_volume_endpoint(api_key: str = Header(None, alias="X-API-Key")) ->
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/volume")
+@app.post("/volume", tags=["System"])
 async def set_volume_endpoint(request: VolumeRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Set system volume."""
+    """
+    Set system volume.
+    
+    Set the volume level (0-100) and/or mute/unmute the system.
+    """
     require_auth(api_key)
     try:
         message = set_volume(request.level, request.mute)
@@ -322,9 +456,13 @@ async def set_volume_endpoint(request: VolumeRequest, api_key: str = Header(None
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/dark-mode")
+@app.get("/dark-mode", tags=["System"])
 async def get_dark_mode_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Get current dark mode status."""
+    """
+    Get current dark mode status.
+    
+    Returns whether dark mode is currently enabled.
+    """
     require_auth(api_key)
     try:
         enabled = get_dark_mode()
@@ -333,9 +471,13 @@ async def get_dark_mode_endpoint(api_key: str = Header(None, alias="X-API-Key"))
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/dark-mode")
+@app.post("/dark-mode", tags=["System"])
 async def toggle_dark_mode_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Toggle dark mode."""
+    """
+    Toggle dark mode.
+    
+    Switches between light and dark mode. Requires accessibility permissions.
+    """
     require_auth(api_key)
     try:
         message = toggle_dark_mode()
@@ -344,9 +486,13 @@ async def toggle_dark_mode_endpoint(api_key: str = Header(None, alias="X-API-Key
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/sleep")
+@app.post("/sleep", tags=["System"])
 async def sleep_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Put the system to sleep."""
+    """
+    Put the system to sleep.
+    
+    Immediately puts the Mac to sleep.
+    """
     require_auth(api_key)
     try:
         message = sleep_system()
@@ -355,9 +501,13 @@ async def sleep_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/lock")
+@app.post("/lock", tags=["System"])
 async def lock_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Lock the screen."""
+    """
+    Lock the screen.
+    
+    Locks the screen immediately. Requires accessibility permissions.
+    """
     require_auth(api_key)
     try:
         message = lock_screen()
@@ -370,9 +520,14 @@ async def lock_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[
 # Filesystem
 # =============================================================================
 
-@app.post("/files/list")
+@app.post("/files/list", tags=["Filesystem"])
 async def list_files_endpoint(request: ListFilesRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """List files in a directory (safe directories only)."""
+    """
+    List files in a directory.
+    
+    Lists files and directories at the specified path. Only works within safe directories
+    (Desktop, Documents, Downloads).
+    """
     require_auth(api_key)
     try:
         files = list_files(request.path, request.show_hidden)
@@ -381,9 +536,14 @@ async def list_files_endpoint(request: ListFilesRequest, api_key: str = Header(N
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/files/read")
+@app.post("/files/read", tags=["Filesystem"])
 async def read_file_endpoint(request: ReadFileRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Read a text file (safe directories only)."""
+    """
+    Read a text file.
+    
+    Reads the contents of a text file. Only works within safe directories
+    (Desktop, Documents, Downloads). Has a configurable max size limit.
+    """
     require_auth(api_key)
     try:
         content = read_file(request.path, request.max_size)
@@ -392,9 +552,14 @@ async def read_file_endpoint(request: ReadFileRequest, api_key: str = Header(Non
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.post("/files/write")
+@app.post("/files/write", tags=["Filesystem"])
 async def write_file_endpoint(request: WriteFileRequest, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Write to a file (safe directories only)."""
+    """
+    Write to a file.
+    
+    Writes content to a file, optionally appending instead of overwriting.
+    Only works within safe directories (Desktop, Documents, Downloads).
+    """
     require_auth(api_key)
     try:
         message = write_file(request.path, request.content, request.append)
@@ -403,9 +568,13 @@ async def write_file_endpoint(request: WriteFileRequest, api_key: str = Header(N
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/downloads")
+@app.get("/downloads", tags=["Filesystem"])
 async def list_downloads_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """List files in Downloads folder."""
+    """
+    List files in Downloads folder.
+    
+    Convenience endpoint to list files in the user's Downloads directory.
+    """
     require_auth(api_key)
     try:
         files = list_downloads()
@@ -449,7 +618,7 @@ async def on_break_complete():
 pomodoro_manager.set_callbacks(on_work_session_complete, on_break_complete)
 
 
-@app.post("/pomodoro/start")
+@app.post("/pomodoro/start", tags=["Pomodoro"])
 async def pomodoro_start(
     request: PomodoroStartRequest,
     api_key: str = Header(None, alias="X-API-Key")
@@ -457,9 +626,9 @@ async def pomodoro_start(
     """
     Start a pomodoro work session.
     
-    Optionally enables focus mode (mutes volume).
-    After work_duration minutes, notifies and starts break.
-    After break_duration minutes, notifies and starts next work session.
+    Starts a timed work session with automatic breaks. Optionally enables focus mode
+    which mutes the system volume. After work_duration minutes, sends a notification
+    and starts a break. After break_duration minutes, starts the next work session.
     """
     require_auth(api_key)
     
@@ -498,19 +667,24 @@ async def pomodoro_start(
     return success_response(result)
 
 
-@app.get("/pomodoro/status")
+@app.get("/pomodoro/status", tags=["Pomodoro"])
 async def pomodoro_status(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Get current pomodoro timer status."""
+    """
+    Get current pomodoro timer status.
+    
+    Returns the current state of the pomodoro timer including whether it's active,
+    current phase (work/break), time remaining, and sessions completed.
+    """
     require_auth(api_key)
     return success_response(pomodoro_manager.get_status())
 
 
-@app.post("/pomodoro/stop")
+@app.post("/pomodoro/stop", tags=["Pomodoro"])
 async def pomodoro_stop(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
     """
     Stop the current pomodoro session.
     
-    Restores original volume if focus mode was enabled.
+    Stops the timer and restores original volume if focus mode was enabled.
     """
     require_auth(api_key)
     
@@ -542,13 +716,13 @@ async def pomodoro_stop(api_key: str = Header(None, alias="X-API-Key")) -> dict[
     })
 
 
-@app.post("/pomodoro/skip")
+@app.post("/pomodoro/skip", tags=["Pomodoro"])
 async def pomodoro_skip(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
     """
     Skip to the next phase.
     
-    If in work session: counts as complete, starts break.
-    If in break: starts next work session.
+    Skips to the next phase of the pomodoro cycle. If in a work session, counts it
+    as complete and starts the break. If in a break, starts the next work session.
     """
     require_auth(api_key)
     
@@ -719,9 +893,13 @@ workflow_engine.register_actions({
 })
 
 
-@app.get("/workflows")
+@app.get("/workflows", tags=["Workflows"])
 async def list_workflows(api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """List all defined workflows."""
+    """
+    List all defined workflows.
+    
+    Returns a list of all workflow names and their descriptions.
+    """
     require_auth(api_key)
     try:
         workflows = workflow_engine.list_workflows()
@@ -730,9 +908,13 @@ async def list_workflows(api_key: str = Header(None, alias="X-API-Key")) -> dict
         raise HTTPException(status_code=500, detail=str(e))
 
 
-@app.get("/workflows/{name}")
+@app.get("/workflows/{name}", tags=["Workflows"])
 async def get_workflow(name: str, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Get a specific workflow definition."""
+    """
+    Get a specific workflow definition.
+    
+    Returns the full workflow definition including steps, inputs, and conditions.
+    """
     require_auth(api_key)
     workflow = workflow_engine.get_workflow(name)
     if not workflow:
@@ -740,13 +922,18 @@ async def get_workflow(name: str, api_key: str = Header(None, alias="X-API-Key")
     return success_response(workflow)
 
 
-@app.put("/workflows/{name}")
+@app.put("/workflows/{name}", tags=["Workflows"])
 async def create_or_update_workflow(
     name: str,
     request: Request,
     api_key: str = Header(None, alias="X-API-Key")
 ) -> dict[str, Any]:
-    """Create or update a workflow."""
+    """
+    Create or update a workflow.
+    
+    Creates a new workflow or updates an existing one with the provided definition.
+    The workflow is saved to workflows.yaml.
+    """
     require_auth(api_key)
     try:
         body = await request.json()
@@ -756,9 +943,13 @@ async def create_or_update_workflow(
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@app.delete("/workflows/{name}")
+@app.delete("/workflows/{name}", tags=["Workflows"])
 async def delete_workflow(name: str, api_key: str = Header(None, alias="X-API-Key")) -> dict[str, Any]:
-    """Delete a workflow."""
+    """
+    Delete a workflow.
+    
+    Removes the workflow from workflows.yaml. This action cannot be undone.
+    """
     require_auth(api_key)
     deleted = workflow_engine.delete_workflow(name)
     if not deleted:
@@ -766,7 +957,7 @@ async def delete_workflow(name: str, api_key: str = Header(None, alias="X-API-Ke
     return success_response({"deleted": name})
 
 
-@app.post("/run/{name}")
+@app.post("/run/{name}", tags=["Workflows"])
 async def run_workflow(
     name: str,
     request: Request,
@@ -775,7 +966,8 @@ async def run_workflow(
     """
     Execute a workflow by name.
     
-    Optional JSON body can provide runtime inputs for the workflow.
+    Runs all steps in the workflow sequentially. Optional JSON body can provide
+    runtime input values that override defaults defined in the workflow.
     """
     require_auth(api_key)
     
