@@ -224,6 +224,50 @@ def take_screenshot() -> str:
             os.remove(tmp_path)
 
 
+def save_screenshot(filename: str | None = None) -> dict:
+    """
+    Take a screenshot and save it to Downloads folder.
+    
+    Args:
+        filename: Optional filename (without extension). Defaults to timestamp.
+    
+    Returns:
+        Dict with path to saved file.
+    """
+    from datetime import datetime
+    
+    # Generate filename if not provided
+    if not filename:
+        filename = f"screenshot_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    
+    # Ensure .png extension
+    if not filename.endswith('.png'):
+        filename = f"{filename}.png"
+    
+    # Save to Downloads
+    downloads = Path.home() / "Downloads"
+    save_path = downloads / filename
+    
+    # Take screenshot directly to file
+    result = subprocess.run(
+        ["screencapture", "-x", str(save_path)],
+        capture_output=True,
+        timeout=10
+    )
+    
+    if result.returncode != 0:
+        raise ExecutionError(f"Screenshot failed: {result.stderr.decode()}")
+    
+    if not save_path.exists():
+        raise ExecutionError("Screenshot file was not created")
+    
+    return {
+        "path": str(save_path),
+        "filename": filename,
+        "message": f"Screenshot saved to {save_path}"
+    }
+
+
 # =============================================================================
 # URL
 # =============================================================================

@@ -32,6 +32,9 @@ const ACTION_PARAMS = {
         { name: 'text', type: 'text', label: 'Text to copy', required: true }
     ],
     'screenshot': [],
+    'save-screenshot': [
+        { name: 'filename', type: 'text', label: 'Filename (optional)', required: false, placeholder: 'e.g., bug_screenshot' }
+    ],
     'create-note': [
         { name: 'title', type: 'text', label: 'Note title', required: true },
         { name: 'content', type: 'textarea', label: 'Note content', required: true }
@@ -100,6 +103,13 @@ const elements = {
     stepAction: $('#step-action'),
     stepParamsContainer: $('#step-params-container'),
     stepCondition: $('#step-condition'),
+    conditionEnabled: $('#condition-enabled'),
+    conditionBuilder: $('#condition-builder'),
+    conditionSource: $('#condition-source'),
+    conditionField: $('#condition-field'),
+    conditionOperator: $('#condition-operator'),
+    conditionValue: $('#condition-value'),
+    conditionPreview: $('#condition-preview'),
     deleteModal: $('#delete-modal'),
     deleteWorkflowName: $('#delete-workflow-name'),
     runModal: $('#run-modal'),
@@ -326,9 +336,27 @@ function renderSteps() {
             .map(([k, v]) => `<span class="text-night-400">${k}:</span> <span class="text-accent">${truncate(String(v), 30)}</span>`)
             .join(', ');
         
+        const isFirst = i === 0;
+        const isLast = i === steps.length - 1;
+        
         return `
             <div class="step-card bg-night-900 rounded-lg border border-night-800 overflow-hidden" data-step-index="${i}">
                 <div class="flex items-center gap-3 p-3">
+                    <!-- Reorder buttons -->
+                    <div class="flex flex-col gap-0.5">
+                        <button class="p-1 text-night-500 hover:text-white rounded hover:bg-night-800 ${isFirst ? 'opacity-30 cursor-not-allowed' : ''}" 
+                            data-move-up="${i}" title="Move up" ${isFirst ? 'disabled' : ''}>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"></path>
+                            </svg>
+                        </button>
+                        <button class="p-1 text-night-500 hover:text-white rounded hover:bg-night-800 ${isLast ? 'opacity-30 cursor-not-allowed' : ''}" 
+                            data-move-down="${i}" title="Move down" ${isLast ? 'disabled' : ''}>
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                    </div>
                     <div class="flex items-center justify-center w-6 h-6 bg-night-800 rounded text-xs font-mono text-night-400">${i + 1}</div>
                     <div class="flex-1 min-w-0">
                         <div class="font-medium text-sm flex items-center gap-2">
@@ -367,6 +395,26 @@ function renderSteps() {
         el.addEventListener('click', (e) => {
             const index = parseInt(e.target.closest('[data-remove-step]').dataset.removeStep);
             removeStep(index);
+        });
+    });
+    
+    // Move up handlers
+    $$('[data-move-up]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-move-up]');
+            if (btn.disabled) return;
+            const index = parseInt(btn.dataset.moveUp);
+            moveStep(index, index - 1);
+        });
+    });
+    
+    // Move down handlers
+    $$('[data-move-down]').forEach(el => {
+        el.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-move-down]');
+            if (btn.disabled) return;
+            const index = parseInt(btn.dataset.moveDown);
+            moveStep(index, index + 1);
         });
     });
 }
@@ -517,6 +565,10 @@ function openAddStep() {
     elements.stepAction.value = '';
     elements.stepCondition.value = '';
     elements.stepParamsContainer.innerHTML = '<div class="text-night-500 text-sm">Select an action to see its parameters.</div>';
+    
+    // Reset condition builder
+    resetConditionBuilder();
+    
     showModal(elements.stepModal);
 }
 
@@ -540,6 +592,13 @@ function openEditStep(index) {
             }
         }
     });
+    
+    // Populate condition builder
+    if (step.if) {
+        parseConditionToBuilder(step.if);
+    } else {
+        resetConditionBuilder();
+    }
     
     showModal(elements.stepModal);
 }
@@ -609,6 +668,15 @@ function removeStep(index) {
     renderSteps();
 }
 
+function moveStep(fromIndex, toIndex) {
+    const steps = state.currentWorkflow.steps;
+    if (toIndex < 0 || toIndex >= steps.length) return;
+    
+    const [step] = steps.splice(fromIndex, 1);
+    steps.splice(toIndex, 0, step);
+    renderSteps();
+}
+
 function openRunModal() {
     const inputs = state.currentWorkflow.inputs || [];
     
@@ -651,6 +719,76 @@ function confirmRun() {
 function openDeleteModal() {
     elements.deleteWorkflowName.textContent = state.currentWorkflowName;
     showModal(elements.deleteModal);
+}
+
+// =============================================================================
+// Condition Builder Helpers
+// =============================================================================
+
+function resetConditionBuilder() {
+    elements.conditionEnabled.checked = false;
+    elements.conditionBuilder.classList.add('hidden');
+    elements.conditionSource.value = '';
+    elements.conditionField.value = '';
+    elements.conditionOperator.value = '!=';
+    elements.conditionValue.value = '';
+    elements.conditionPreview.textContent = '';
+    elements.stepCondition.value = '';
+}
+
+function parseConditionToBuilder(conditionStr) {
+    // Try to parse a condition string like "steps[0].text != ''"
+    const patterns = [
+        /^(steps\[\d+\])\.(\w+)\s*(!=|==|>=|<=|>|<)\s*(.+)$/,
+        /^(input)\.(\w+)\s*(!=|==|>=|<=|>|<)\s*(.+)$/
+    ];
+    
+    for (const pattern of patterns) {
+        const match = conditionStr.match(pattern);
+        if (match) {
+            elements.conditionEnabled.checked = true;
+            elements.conditionBuilder.classList.remove('hidden');
+            elements.conditionSource.value = match[1];
+            elements.conditionField.value = match[2];
+            elements.conditionOperator.value = match[3];
+            elements.conditionValue.value = match[4];
+            updateConditionPreview();
+            return;
+        }
+    }
+    
+    // Couldn't parse - show builder but leave empty, keep original value
+    elements.conditionEnabled.checked = true;
+    elements.conditionBuilder.classList.remove('hidden');
+    elements.stepCondition.value = conditionStr;
+    elements.conditionPreview.textContent = conditionStr + ' (custom)';
+}
+
+function updateConditionPreview() {
+    const source = elements.conditionSource.value;
+    const field = elements.conditionField.value.trim();
+    const operator = elements.conditionOperator.value;
+    const value = elements.conditionValue.value.trim();
+    
+    if (!source || !field) {
+        elements.conditionPreview.textContent = '';
+        elements.stepCondition.value = '';
+        return;
+    }
+    
+    const condition = `${source}.${field} ${operator} ${value || "''"}`;
+    elements.conditionPreview.textContent = condition;
+    elements.stepCondition.value = condition;
+}
+
+function toggleConditionBuilder() {
+    if (elements.conditionEnabled.checked) {
+        elements.conditionBuilder.classList.remove('hidden');
+        updateConditionPreview();
+    } else {
+        elements.conditionBuilder.classList.add('hidden');
+        elements.stepCondition.value = '';
+    }
 }
 
 // =============================================================================
@@ -750,6 +888,13 @@ function setupEventListeners() {
     elements.stepAction.addEventListener('change', (e) => {
         renderStepParams(e.target.value);
     });
+    
+    // Condition builder
+    elements.conditionEnabled.addEventListener('change', toggleConditionBuilder);
+    elements.conditionSource.addEventListener('change', updateConditionPreview);
+    elements.conditionField.addEventListener('input', updateConditionPreview);
+    elements.conditionOperator.addEventListener('change', updateConditionPreview);
+    elements.conditionValue.addEventListener('input', updateConditionPreview);
     
     // Close modals on backdrop click
     [elements.stepModal, elements.deleteModal, elements.runModal].forEach(modal => {

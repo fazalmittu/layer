@@ -40,7 +40,7 @@ workflows:
     - name: title
       default: Bug Report
     steps:
-    - action: screenshot
+    - action: save-screenshot
     - action: clipboard-get
     - action: create-note
       params:
@@ -50,20 +50,20 @@ workflows:
           Captured: {{ timestamp }}
 
 
+          ## Screenshot
+
+          Saved to: {{ steps[0].path }}
+
+
           ## Clipboard Content
 
           {{ steps[1].text }}
-
-
-          ## Screenshot
-
-          Screenshot captured (see step 0 output for base64 data)
 
           '
     - action: notify
       params:
         title: Bug Captured
-        message: Note created with screenshot and clipboard
+        message: Screenshot saved to Downloads
   coding-layout:
     description: Set up a coding workspace with split windows
     steps:

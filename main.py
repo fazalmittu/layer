@@ -37,6 +37,7 @@ from executor import (
     set_clipboard,
     # Screenshot
     take_screenshot,
+    save_screenshot,
     # URL
     open_url,
     # Shortcuts
@@ -594,6 +595,10 @@ def _workflow_screenshot() -> dict:
     return {"image": take_screenshot(), "format": "png"}
 
 
+def _workflow_save_screenshot(filename: str = None) -> dict:
+    return save_screenshot(filename)
+
+
 def _workflow_clipboard_get() -> dict:
     return {"text": get_clipboard()}
 
@@ -698,6 +703,7 @@ workflow_engine.register_actions({
     "notify": _workflow_notify,
     "speak": _workflow_speak,
     "screenshot": _workflow_screenshot,
+    "save-screenshot": _workflow_save_screenshot,
     "clipboard-get": _workflow_clipboard_get,
     "clipboard-set": _workflow_clipboard_set,
     "create-note": _workflow_create_note,
