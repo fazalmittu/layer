@@ -24,8 +24,13 @@ class WorkflowEngine:
     Supports variable substitution and conditional execution.
     """
     
-    def __init__(self, workflows_path: str = "workflows.yaml"):
-        self.workflows_path = Path(workflows_path)
+    def __init__(self, workflows_path: str = None):
+        # Default to project root (parent of src/)
+        if workflows_path is None:
+            project_root = Path(__file__).parent.parent
+            self.workflows_path = project_root / "workflows.yaml"
+        else:
+            self.workflows_path = Path(workflows_path)
         self.actions: dict[str, Callable] = {}
     
     def register_action(self, name: str, func: Callable):

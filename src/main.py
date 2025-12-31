@@ -167,8 +167,9 @@ All endpoints (except `/ping` and `/`) require the `X-API-Key` header.
     },
 )
 
-# Mount static files
-static_dir = Path(__file__).parent / "static"
+# Mount static files (static/ is in project root, not src/)
+project_root = Path(__file__).parent.parent
+static_dir = project_root / "static"
 if static_dir.exists():
     app.mount("/static", StaticFiles(directory=static_dir), name="static")
 
@@ -224,7 +225,7 @@ def require_auth(api_key: str | None) -> None:
 @app.get("/")
 async def serve_ui():
     """Serve the workflow editor UI."""
-    index_path = Path(__file__).parent / "static" / "index.html"
+    index_path = project_root / "static" / "index.html"
     if index_path.exists():
         return FileResponse(index_path)
     return JSONResponse({"message": "UI not found. Check static/index.html"}, status_code=404)

@@ -63,7 +63,7 @@ python -c "import secrets; print(secrets.token_urlsafe(32))"
 # Edit .env and paste the generated key
 
 # Start the server
-python main.py
+python src/main.py
 ```
 
 The API runs at `http://localhost:8000`
@@ -367,21 +367,24 @@ macOS will prompt for permissions on first use:
 
 ```
 layer/
-├── main.py                 # FastAPI server
-├── executor.py             # macOS automation functions
-├── workflow_engine.py      # Workflow loading/execution
-├── config.py               # Configuration & allowed apps
-├── schemas.py              # Pydantic models
-├── pomodoro.py             # Pomodoro timer logic
-├── requirements.txt        # Python dependencies
-├── .env.example            # Template for environment vars
-├── .env                    # Your API key (gitignored)
-├── workflows.example.yaml  # Example workflows (committed)
-├── workflows.yaml          # Your workflows (gitignored)
+├── src/                    # Python source code
+│   ├── main.py             # FastAPI server entry point
+│   ├── executor.py         # macOS automation functions
+│   ├── workflow_engine.py  # Workflow loading/execution
+│   ├── wallpaper_generator.py  # Dynamic wallpaper
+│   ├── config.py           # Configuration & allowed apps
+│   ├── schemas.py          # Pydantic models
+│   └── pomodoro.py         # Pomodoro timer logic
 ├── static/                 # Web UI
 │   ├── index.html
 │   └── app.js
-└── openapi/                # Generated API specs
+├── openapi/                # Generated API specs
+├── assets/                 # README images
+├── workflows.example.yaml  # Example workflows (committed)
+├── workflows.yaml          # Your workflows (gitignored)
+├── .env.example            # Template for environment vars
+├── .env                    # Your API keys (gitignored)
+└── requirements.txt        # Python dependencies
 ```
 
 **What's committed vs. ignored:**
