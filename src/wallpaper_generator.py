@@ -1,30 +1,35 @@
 """
 Dynamic wallpaper generator.
-Creates a minimal, clean dashboard wallpaper with live data.
+Creates a minimal, aesthetic dashboard wallpaper with year progress and live data.
 """
 
 import subprocess
 import requests
-from datetime import datetime
+import json
+import math
+from datetime import datetime, date
 from pathlib import Path
 from typing import Optional
 from PIL import Image, ImageDraw, ImageFont
 import os
 
 from config import WEATHER_API_KEY
+
 WALLPAPER_PATH = Path.home() / "Pictures" / "layer_wallpaper.png"
 
 # Colors (minimal dark theme)
 COLORS = {
-    "bg_start": (18, 18, 24),      # Dark blue-gray
-    "bg_end": (28, 28, 38),        # Slightly lighter
+    "bg": (13, 13, 17),
+    "dot_empty": (35, 35, 45),
+    "dot_filled": (120, 110, 255),
+    "dot_today": (255, 120, 100),
     "text_primary": (255, 255, 255),
-    "text_secondary": (160, 160, 175),
-    "text_muted": (100, 100, 115),
-    "accent": (130, 120, 255),     # Soft purple
+    "text_secondary": (140, 140, 155),
+    "text_muted": (80, 80, 95),
+    "accent": (120, 110, 255),
 }
 
-# Try to use nice fonts, fallback to defaults
+
 def get_font(size: int, weight: str = "regular") -> ImageFont.FreeTypeFont:
     """Get a font with fallbacks."""
     font_paths = {
@@ -54,7 +59,6 @@ def get_font(size: int, weight: str = "regular") -> ImageFont.FreeTypeFont:
             except:
                 continue
     
-    # Ultimate fallback
     try:
         return ImageFont.truetype("/System/Library/Fonts/Helvetica.ttc", size)
     except:
@@ -65,26 +69,42 @@ def get_font(size: int, weight: str = "regular") -> ImageFont.FreeTypeFont:
 # Data Fetchers
 # =============================================================================
 
+def get_year_progress() -> dict:
+    """Calculate year progress."""
+    now = datetime.now()
+    year_start = date(now.year, 1, 1)
+    year_end = date(now.year, 12, 31)
+    today = now.date()
+    
+    total_days = (year_end - year_start).days + 1
+    days_passed = (today - year_start).days + 1
+    days_remaining = total_days - days_passed
+    percent = (days_passed / total_days) * 100
+    
+    return {
+        "year": now.year,
+        "total_days": total_days,
+        "days_passed": days_passed,
+        "days_remaining": days_remaining,
+        "percent": percent,
+        "day_of_year": days_passed,
+    }
+
+
 def get_weather(city: str = "San Francisco") -> Optional[dict]:
     """Fetch current weather from OpenWeatherMap."""
     if not WEATHER_API_KEY:
-        return None  # No API key configured
+        return None
     
     try:
-        url = f"https://api.openweathermap.org/data/2.5/weather"
-        params = {
-            "q": city,
-            "appid": WEATHER_API_KEY,
-            "units": "imperial"
-        }
+        url = "https://api.openweathermap.org/data/2.5/weather"
+        params = {"q": city, "appid": WEATHER_API_KEY, "units": "imperial"}
         resp = requests.get(url, params=params, timeout=5)
         if resp.status_code == 200:
             data = resp.json()
             return {
                 "temp": round(data["main"]["temp"]),
-                "feels_like": round(data["main"]["feels_like"]),
                 "description": data["weather"][0]["description"].title(),
-                "icon": data["weather"][0]["icon"],
                 "city": data["name"],
             }
     except Exception as e:
@@ -97,12 +117,10 @@ def get_calendar_events() -> list[dict]:
     script = '''
     use AppleScript version "2.4"
     use scripting additions
-    use framework "Foundation"
     
     set today to current date
     set todayStart to today - (time of today)
     set todayEnd to todayStart + (24 * 60 * 60)
-    
     set eventList to {}
     
     tell application "Calendar"
@@ -112,7 +130,7 @@ def get_calendar_events() -> list[dict]:
                 set evtStart to start date of evt
                 set evtSummary to summary of evt
                 set timeStr to text 1 thru 5 of (time string of evtStart)
-                set end of eventList to timeStr & " - " & evtSummary
+                set end of eventList to timeStr & " " & evtSummary
             end repeat
         end repeat
     end tell
@@ -121,15 +139,12 @@ def get_calendar_events() -> list[dict]:
     return eventList as text
     '''
     try:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=10)
         if result.returncode == 0 and result.stdout.strip():
             events = result.stdout.strip().split("|||")
-            return [{"text": e.strip()} for e in events if e.strip()]
-    except Exception as e:
-        print(f"Calendar fetch failed: {e}")
+            return [{"text": e.strip()} for e in events if e.strip()][:4]
+    except:
+        pass
     return []
 
 
@@ -146,21 +161,17 @@ def get_reminders() -> list[dict]:
                 end if
             end repeat
         end repeat
-        
         set AppleScript's text item delimiters to "|||"
         return reminderList as text
     end tell
     '''
     try:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=10)
         if result.returncode == 0 and result.stdout.strip():
             reminders = result.stdout.strip().split("|||")
-            return [{"text": r.strip()} for r in reminders if r.strip()]
-    except Exception as e:
-        print(f"Reminders fetch failed: {e}")
+            return [{"text": r.strip()} for r in reminders if r.strip()][:4]
+    except:
+        pass
     return []
 
 
@@ -168,20 +179,46 @@ def get_reminders() -> list[dict]:
 # Image Generation
 # =============================================================================
 
-def create_gradient(width: int, height: int) -> Image.Image:
-    """Create a subtle gradient background."""
-    img = Image.new("RGB", (width, height))
+def draw_year_grid(draw: ImageDraw, x: int, y: int, progress: dict, dot_size: int = 8, gap: int = 4):
+    """
+    Draw a year progress grid (like GitHub contributions).
+    52 columns (weeks) x 7 rows (days) = 364 dots + 1 or 2 extra
+    """
+    days_passed = progress["days_passed"]
+    total_days = progress["total_days"]
     
-    for y in range(height):
-        ratio = y / height
-        r = int(COLORS["bg_start"][0] + (COLORS["bg_end"][0] - COLORS["bg_start"][0]) * ratio)
-        g = int(COLORS["bg_start"][1] + (COLORS["bg_end"][1] - COLORS["bg_start"][1]) * ratio)
-        b = int(COLORS["bg_start"][2] + (COLORS["bg_end"][2] - COLORS["bg_start"][2]) * ratio)
-        
-        for x in range(width):
-            img.putpixel((x, y), (r, g, b))
+    cols = 53  # 52 weeks + partial
+    rows = 7   # days of week
     
-    return img
+    day = 0
+    for col in range(cols):
+        for row in range(rows):
+            day += 1
+            if day > total_days:
+                break
+            
+            dot_x = x + col * (dot_size + gap)
+            dot_y = y + row * (dot_size + gap)
+            
+            if day < days_passed:
+                color = COLORS["dot_filled"]
+            elif day == days_passed:
+                color = COLORS["dot_today"]
+            else:
+                color = COLORS["dot_empty"]
+            
+            # Draw rounded rectangle (pill shape)
+            radius = max(2, dot_size // 4)
+            draw.rounded_rectangle(
+                [dot_x, dot_y, dot_x + dot_size, dot_y + dot_size],
+                radius=radius,
+                fill=color
+            )
+    
+    # Return dimensions for layout
+    grid_width = cols * (dot_size + gap) - gap
+    grid_height = rows * (dot_size + gap) - gap
+    return grid_width, grid_height
 
 
 def generate_wallpaper(
@@ -195,159 +232,148 @@ def generate_wallpaper(
 ) -> str:
     """Generate the dynamic wallpaper."""
     
-    # Create gradient background
-    img = create_gradient(width, height)
+    # Scale factor based on resolution (base is 2560 width)
+    scale = width / 2560
+    s = lambda x: int(x * scale)  # Scale helper
+    
+    # Solid dark background
+    img = Image.new("RGB", (width, height), COLORS["bg"])
     draw = ImageDraw.Draw(img)
     
-    # Fonts
-    font_time = get_font(220, "light")
-    font_date = get_font(42, "regular")
-    font_section = get_font(18, "bold")
-    font_item = get_font(24, "regular")
-    font_weather_temp = get_font(72, "light")
-    font_weather_desc = get_font(22, "regular")
-    font_message = get_font(28, "light")
+    # Fonts (scaled)
+    font_huge = get_font(s(180), "bold")
+    font_large = get_font(s(72), "light")
+    font_medium = get_font(s(42), "regular")
+    font_small = get_font(s(28), "regular")
+    font_tiny = get_font(s(22), "regular")
     
-    # Margins
-    margin_left = 140
-    margin_top = height // 4
-    
-    # Current time and date
+    # Get data
+    progress = get_year_progress()
     now = datetime.now()
-    time_str = now.strftime("%-I:%M")
-    am_pm = now.strftime("%p").lower()
-    date_str = now.strftime("%A, %B %-d")
     
-    # Draw time (large, left side)
+    # === LEFT SIDE: Year Progress ===
+    margin_left = s(200)
+    margin_top = height // 5
+    
+    # Big percentage
+    percent_str = f"{progress['percent']:.1f}%"
     draw.text(
         (margin_left, margin_top),
-        time_str,
-        font=font_time,
+        percent_str,
+        font=font_huge,
         fill=COLORS["text_primary"]
     )
     
-    # Get time width to position AM/PM
-    time_bbox = draw.textbbox((margin_left, margin_top), time_str, font=font_time)
-    time_width = time_bbox[2] - time_bbox[0]
-    
-    # Draw AM/PM smaller, next to time
-    font_ampm = get_font(48, "light")
+    # "of [year] complete"
     draw.text(
-        (margin_left + time_width + 15, margin_top + 160),
-        am_pm,
-        font=font_ampm,
-        fill=COLORS["text_muted"]
-    )
-    
-    # Draw date below time
-    draw.text(
-        (margin_left, margin_top + 230),
-        date_str,
-        font=font_date,
+        (margin_left, margin_top + s(190)),
+        f"of {progress['year']} complete",
+        font=font_large,
         fill=COLORS["text_secondary"]
     )
     
-    # Right side content (weather, events, reminders)
-    right_x = width - 500
+    # Stats line
+    stats_y = margin_top + s(290)
+    stats_text = f"{progress['days_passed']} days down  ·  {progress['days_remaining']} to go"
+    draw.text(
+        (margin_left, stats_y),
+        stats_text,
+        font=font_medium,
+        fill=COLORS["text_muted"]
+    )
+    
+    # Year grid (scaled)
+    grid_y = stats_y + s(80)
+    dot_size = s(14)
+    dot_gap = s(4)
+    draw_year_grid(draw, margin_left, grid_y, progress, dot_size=dot_size, gap=dot_gap)
+    
+    # Date below grid
+    date_y = grid_y + 7 * (dot_size + dot_gap) + s(40)
+    date_str = now.strftime("%A, %B %-d")
+    draw.text(
+        (margin_left, date_y),
+        date_str,
+        font=font_medium,
+        fill=COLORS["text_secondary"]
+    )
+    
+    # === RIGHT SIDE: Weather, Calendar, Reminders ===
+    right_x = width - s(600)
     content_y = margin_top
     
-    # Weather (top right)
+    # Weather
     if show_weather:
         weather = get_weather(city)
         if weather:
-            # Temperature
             draw.text(
                 (right_x, content_y),
                 f"{weather['temp']}°",
-                font=font_weather_temp,
+                font=get_font(s(96), "light"),
                 fill=COLORS["text_primary"]
             )
-            # Description and city
             draw.text(
-                (right_x, content_y + 85),
+                (right_x, content_y + s(110)),
                 weather["description"],
-                font=font_weather_desc,
+                font=font_small,
                 fill=COLORS["text_secondary"]
             )
             draw.text(
-                (right_x, content_y + 115),
+                (right_x, content_y + s(145)),
                 weather["city"],
-                font=font_section,
+                font=font_tiny,
                 fill=COLORS["text_muted"]
             )
-            content_y += 180
+            content_y += s(220)
     
-    # Calendar events
+    # Calendar
     if show_calendar:
         events = get_calendar_events()
         if events:
-            content_y += 30
+            content_y += s(30)
             draw.text(
                 (right_x, content_y),
                 "TODAY",
-                font=font_section,
+                font=font_tiny,
                 fill=COLORS["accent"]
             )
-            content_y += 35
-            
-            for event in events[:4]:  # Max 4 events
-                text = event["text"]
-                if len(text) > 35:
-                    text = text[:32] + "..."
-                draw.text(
-                    (right_x, content_y),
-                    text,
-                    font=font_item,
-                    fill=COLORS["text_secondary"]
-                )
-                content_y += 38
+            content_y += s(40)
+            for event in events:
+                text = event["text"][:40] + "..." if len(event["text"]) > 40 else event["text"]
+                draw.text((right_x, content_y), text, font=font_small, fill=COLORS["text_secondary"])
+                content_y += s(45)
     
     # Reminders
     if show_reminders:
         reminders = get_reminders()
         if reminders:
-            content_y += 30
+            content_y += s(40)
             draw.text(
                 (right_x, content_y),
                 "TASKS",
-                font=font_section,
+                font=font_tiny,
                 fill=COLORS["accent"]
             )
-            content_y += 35
-            
-            for reminder in reminders[:4]:  # Max 4 reminders
-                text = reminder["text"]
-                if len(text) > 35:
-                    text = text[:32] + "..."
-                # Draw checkbox
-                draw.text(
-                    (right_x, content_y),
-                    "○  " + text,
-                    font=font_item,
-                    fill=COLORS["text_secondary"]
-                )
-                content_y += 38
+            content_y += s(40)
+            for reminder in reminders:
+                text = reminder["text"][:40] + "..." if len(reminder["text"]) > 40 else reminder["text"]
+                draw.text((right_x, content_y), f"○ {text}", font=font_small, fill=COLORS["text_secondary"])
+                content_y += s(45)
     
     # Custom message (bottom left)
     if custom_message:
         draw.text(
-            (margin_left, height - 150),
+            (margin_left, height - s(140)),
             custom_message,
-            font=font_message,
+            font=font_medium,
             fill=COLORS["text_muted"]
         )
     
-    # Subtle accent line
-    line_y = margin_top + 290
-    draw.line(
-        [(margin_left, line_y), (margin_left + 60, line_y)],
-        fill=COLORS["accent"],
-        width=3
-    )
-    
-    # Save
+    # Save with high DPI for Retina sharpness
     WALLPAPER_PATH.parent.mkdir(parents=True, exist_ok=True)
-    img.save(str(WALLPAPER_PATH), "PNG", quality=95)
+    
+    # Set DPI metadata for Retina displays (144 = 2x standard 72 DPI)
+    img.save(str(WALLPAPER_PATH), "PNG", dpi=(144, 144))
     
     return str(WALLPAPER_PATH)
 
@@ -362,41 +388,42 @@ def set_wallpaper(image_path: str) -> bool:
     end tell
     '''
     try:
-        result = subprocess.run(
-            ["osascript", "-e", script],
-            capture_output=True, text=True, timeout=10
-        )
+        result = subprocess.run(["osascript", "-e", script], capture_output=True, text=True, timeout=10)
         return result.returncode == 0
-    except Exception as e:
-        print(f"Set wallpaper failed: {e}")
+    except:
         return False
 
 
 def get_screen_resolution() -> tuple[int, int]:
-    """Get the main display resolution using system_profiler."""
+    """Get the native display resolution (not scaled)."""
     try:
         result = subprocess.run(
             ["system_profiler", "SPDisplaysDataType", "-json"],
             capture_output=True, text=True, timeout=10
         )
         if result.returncode == 0:
-            import json
             data = json.loads(result.stdout)
-            displays = data.get("SPDisplaysDataType", [])
-            for gpu in displays:
+            for gpu in data.get("SPDisplaysDataType", []):
                 for display in gpu.get("spdisplays_ndrvs", []):
-                    resolution = display.get("_spdisplays_resolution", "")
-                    # Format is like "2560 x 1600" or "3024 x 1964 @ 120.00Hz"
-                    if resolution:
-                        parts = resolution.split(" x ")
+                    # Try to get native/Retina resolution first
+                    native = display.get("_spdisplays_native", "")
+                    if native:
+                        # Format: "3024 x 1964"
+                        parts = native.split(" x ")
                         if len(parts) >= 2:
-                            width = int(parts[0].strip())
-                            height = int(parts[1].split()[0].strip())
-                            return width, height
-    except Exception as e:
-        print(f"Resolution detection failed: {e}")
+                            return int(parts[0].strip()), int(parts[1].split()[0].strip())
+                    
+                    # Fall back to pixels (native resolution)
+                    pixels = display.get("_spdisplays_pixels", "")
+                    if pixels:
+                        parts = pixels.split(" x ")
+                        if len(parts) >= 2:
+                            return int(parts[0].strip()), int(parts[1].split()[0].strip())
+    except:
+        pass
     
-    return 2560, 1600  # Sensible default for Retina MacBooks
+    # Default to high resolution for modern Macs
+    return 3024, 1964
 
 
 def generate_and_set_wallpaper(
@@ -408,10 +435,8 @@ def generate_and_set_wallpaper(
 ) -> dict:
     """Generate a dynamic wallpaper and set it as desktop background."""
     try:
-        # Get screen resolution
         width, height = get_screen_resolution()
         
-        # Generate wallpaper
         path = generate_wallpaper(
             city=city,
             show_weather=show_weather,
@@ -422,28 +447,21 @@ def generate_and_set_wallpaper(
             height=height,
         )
         
-        # Set as wallpaper
         success = set_wallpaper(path)
+        progress = get_year_progress()
         
         return {
             "success": success,
             "path": path,
             "resolution": f"{width}x{height}",
-            "message": "Wallpaper generated and set" if success else "Generated but failed to set"
+            "year_progress": f"{progress['percent']:.1f}%",
+            "days_remaining": progress["days_remaining"],
         }
         
     except Exception as e:
-        return {
-            "success": False,
-            "error": str(e)
-        }
+        return {"success": False, "error": str(e)}
 
 
 if __name__ == "__main__":
-    # Test
-    result = generate_and_set_wallpaper(
-        city="San Francisco",
-        custom_message="Focus on what matters."
-    )
+    result = generate_and_set_wallpaper(city="San Francisco")
     print(result)
-
