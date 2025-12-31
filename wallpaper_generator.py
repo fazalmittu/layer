@@ -67,6 +67,9 @@ def get_font(size: int, weight: str = "regular") -> ImageFont.FreeTypeFont:
 
 def get_weather(city: str = "San Francisco") -> Optional[dict]:
     """Fetch current weather from OpenWeatherMap."""
+    if not WEATHER_API_KEY:
+        return None  # No API key configured
+    
     try:
         url = f"https://api.openweathermap.org/data/2.5/weather"
         params = {

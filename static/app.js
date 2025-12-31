@@ -19,8 +19,7 @@ const ACTION_PARAMS = {
     'notify': [
         { name: 'title', type: 'text', label: 'Title', required: true },
         { name: 'message', type: 'text', label: 'Message', required: true },
-        { name: 'subtitle', type: 'text', label: 'Subtitle', required: false },
-        { name: 'sound', type: 'checkbox', label: 'Play sound', required: false, default: true }
+        { name: 'subtitle', type: 'text', label: 'Subtitle', required: false }
     ],
     'speak': [
         { name: 'text', type: 'text', label: 'Text to speak', required: true },
