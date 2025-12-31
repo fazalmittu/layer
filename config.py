@@ -17,6 +17,9 @@ if not API_KEY:
     print("ERROR: MAC_API_KEY not set. Please define it in your .env file.")
     sys.exit(1)
 
+# Weather API Key (OpenWeatherMap) - optional, for dynamic wallpaper
+WEATHER_API_KEY = os.getenv("WEATHER_API_KEY", "").strip()
+
 # Whitelisted applications
 # Maps friendly key -> actual macOS application name
 ALLOWED_APPS: dict[str, str] = {

@@ -771,3 +771,26 @@ def set_window_layout(layout: str, app: str | None = None) -> str:
         raise ExecutionError(f"Rectangle command failed: {result.stderr.strip()}")
     
     return f"Applied layout: {layout}" + (f" to {app}" if app else "")
+
+
+# =============================================================================
+# Wallpaper
+# =============================================================================
+
+def generate_dynamic_wallpaper(
+    city: str = "San Francisco",
+    show_weather: bool = True,
+    show_calendar: bool = True,
+    show_reminders: bool = True,
+    custom_message: str = None,
+) -> dict:
+    """Generate a dynamic dashboard wallpaper and set it as desktop background."""
+    from wallpaper_generator import generate_and_set_wallpaper
+    
+    return generate_and_set_wallpaper(
+        city=city,
+        show_weather=show_weather,
+        show_calendar=show_calendar,
+        show_reminders=show_reminders,
+        custom_message=custom_message,
+    )

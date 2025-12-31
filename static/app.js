@@ -77,6 +77,15 @@ const ACTION_PARAMS = {
     ],
     'spotify-shuffle': [
         { name: 'enabled', type: 'checkbox', label: 'Enable shuffle', required: false, default: true }
+    ],
+    'wallpaper': [
+        { name: 'city', type: 'text', label: 'City for weather', required: false, placeholder: 'San Francisco',
+          info: 'City name for weather data. Uses OpenWeatherMap.' },
+        { name: 'show_weather', type: 'checkbox', label: 'Show weather', required: false, default: true },
+        { name: 'show_calendar', type: 'checkbox', label: 'Show calendar events', required: false, default: true },
+        { name: 'show_reminders', type: 'checkbox', label: 'Show reminders/tasks', required: false, default: true },
+        { name: 'custom_message', type: 'text', label: 'Custom message', required: false, placeholder: 'Focus on what matters.',
+          info: 'Optional message displayed at bottom of wallpaper' }
     ]
 };
 
@@ -648,6 +657,7 @@ const ACTION_OUTPUTS = {
     'spotify-volume': ['volume'],
     'spotify-shuffle': [],
     'spotify-current': ['track', 'artist', 'album'],
+    'wallpaper': ['path', 'resolution'],
 };
 
 // Track last focused param input for variable insertion

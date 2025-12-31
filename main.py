@@ -69,6 +69,8 @@ from executor import (
     spotify_volume,
     spotify_shuffle,
     spotify_repeat,
+    # Wallpaper
+    generate_dynamic_wallpaper,
 )
 from workflow_engine import workflow_engine, WorkflowError
 
@@ -525,6 +527,48 @@ async def lock_endpoint(api_key: str = Header(None, alias="X-API-Key")) -> dict[
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/wallpaper", tags=["System"])
+async def wallpaper_endpoint(
+    request: Request,
+    api_key: str = Header(None, alias="X-API-Key")
+) -> dict[str, Any]:
+    """
+    Generate a dynamic dashboard wallpaper.
+    
+    Creates a beautiful, minimal wallpaper with live data (time, weather, calendar, reminders)
+    and sets it as the desktop background.
+    
+    Optional JSON body:
+    - city: City for weather (default: "San Francisco")
+    - show_weather: Include weather (default: true)
+    - show_calendar: Include today's events (default: true)
+    - show_reminders: Include reminders/tasks (default: true)
+    - custom_message: Optional message to display at bottom
+    """
+    require_auth(api_key)
+    
+    # Parse optional params
+    params = {}
+    try:
+        body = await request.body()
+        if body:
+            params = await request.json()
+    except Exception:
+        pass
+    
+    try:
+        result = generate_dynamic_wallpaper(
+            city=params.get("city", "San Francisco"),
+            show_weather=params.get("show_weather", True),
+            show_calendar=params.get("show_calendar", True),
+            show_reminders=params.get("show_reminders", True),
+            custom_message=params.get("custom_message"),
+        )
+        return success_response(result)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # =============================================================================
 # Filesystem
 # =============================================================================
@@ -847,6 +891,22 @@ def _workflow_spotify_shuffle(enabled: bool = True) -> str:
     return spotify_shuffle(enabled)
 
 
+def _workflow_wallpaper(
+    city: str = "San Francisco",
+    show_weather: bool = True,
+    show_calendar: bool = True,
+    show_reminders: bool = True,
+    custom_message: str = None,
+) -> dict:
+    return generate_dynamic_wallpaper(
+        city=city,
+        show_weather=show_weather,
+        show_calendar=show_calendar,
+        show_reminders=show_reminders,
+        custom_message=custom_message,
+    )
+
+
 def _workflow_pomodoro_start(work_duration: int = 25, break_duration: int = 5, focus_mode: bool = False) -> dict:
     """Synchronous wrapper for pomodoro start."""
     import asyncio
@@ -935,6 +995,7 @@ workflow_engine.register_actions({
     "spotify-current": _workflow_spotify_get_track,
     "spotify-volume": _workflow_spotify_volume,
     "spotify-shuffle": _workflow_spotify_shuffle,
+    "wallpaper": _workflow_wallpaper,
 })
 
 
